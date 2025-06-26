@@ -4,7 +4,7 @@ import random
 import matplotlib.pyplot as plt
 import yaml
 
-def sampling_color_histogram(source_image, visualize=False):
+def sampling_grayscale_histogram(source_image, grayscale=True, visualize=False):
     
     #slow operation
     # source_image = cv2.imread(source_image_path, cv2.IMREAD_GRAYSCALE
@@ -37,9 +37,15 @@ def sampling_color_histogram(source_image, visualize=False):
 
     return grayscale_value
 
+def sampling_rgb_histogram():
+    pass
+
+def sampling_uniform_distribution():
+    return np.random.uniform(0,255)
+
 if __name__ == '__main__':
 
     with open('config.yaml', 'r') as file:
         config = yaml.safe_load(file)
-    value = sampling_color_histogram(config['color']['color_path'], visualize=True)
+    value = sampling_grayscale_histogram(config['color']['color_path'], visualize=True)
     print(value)
