@@ -1,3 +1,5 @@
+#for generation of dead leaves images
+
 import os
 import yaml
 from dead_leaves import DeadLeavesGenerator
@@ -48,5 +50,5 @@ for i in range(0, no_of_images):
     images.append(image)
     index+=1
 
-    print(image.disks)
+    image.visualizeDiskVisibility()
 

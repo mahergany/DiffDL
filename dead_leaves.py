@@ -1,10 +1,13 @@
 import os 
 import numpy as np
+import jax
+import jax.numpy as jnp
 import random
 import time
 import math
 from utils import sampling_grayscale_histogram, sampling_rgb_histogram, sampling_uniform_distribution
 import cv2
+import matplotlib.pyplot as plt
 
 class DeadLeavesGenerator:
     def __init__(self, rmin, rmax, alpha, width, length, grayscale, color_path, uniform_sampling):
@@ -21,21 +24,23 @@ class DeadLeavesGenerator:
 
         self.generated_images = []
 
+        self.key = jax.random.key(0)
+
     def get_shape_mask(self):
         #calculating radius
-        tmp = (self.rmax ** (1-self.alpha)) + ((self.rmin ** (1-self.alpha)) - (self.rmax ** (1-self.alpha))) * np.random.random()
+        tmp = (self.rmax ** (1-self.alpha)) + ((self.rmin ** (1-self.alpha)) - (self.rmax ** (1-self.alpha))) * jax.random.uniform(self.key)
         radius = tmp ** (-1/(self.alpha - 1))
 
         #plotting shape
-        L = np.arange(-radius,radius + 1,dtype = np.int32)
-        X, Y = np.meshgrid(L, L) #coordinate space definition based on radius
-        shape_1d = np.array((X ** 2 + Y ** 2) <= radius ** 2,dtype = bool) #circle definition
+        L = jnp.arange(-radius,radius + 1,dtype = jnp.int32)
+        X, Y = jnp.meshgrid(L, L) #coordinate space definition based on radius
+        shape_1d = jnp.array((X ** 2 + Y ** 2) <= radius ** 2,dtype = bool) #circle definition
 
         return (shape_1d, radius)
     
     def update_base_mask(self, image, shape_1d):
         width_shape, length_shape = shape_1d.shape
-        pos = [np.random.randint(0, self.width), np.random.randint(0, self.width)] #get random coordinates for the center of the disk
+        pos = [jax.random.randint(key=self.key, shape=(), minval=0, maxval=self.width), jax.random.randint(key=self.key, shape=(), minval=0, maxval=self.width)] #get random coordinates for the center of the disk
         
         #mapping into top left and bottom right coordinates
         x_min = max(0, pos[0] - width_shape//2)
@@ -65,13 +70,14 @@ class DeadLeavesGenerator:
         shape_1d = shape_1d[shape_x_start:shape_x_end, shape_y_start:shape_y_end]
 
         shape_mask_1d *= shape_1d
-        image.base_mask[x_min:x_max, y_min:y_max] *= np.logical_not(shape_mask_1d)
+        # image.base_mask[x_min:x_max, y_min:y_max] *= jnp.logical_not(shape_mask_1d)
+        image.base_mask = image.base_mask.at[x_min:x_max, y_min:y_max].multiply(jnp.logical_not(shape_mask_1d))
         return(x_min,x_max,y_min,y_max,shape_mask_1d)
 
     def render_shape(self, shape_mask_1d):
         width_shape,length_shape = shape_mask_1d.shape[0],shape_mask_1d.shape[1]
 
-        shape_mask= np.float32(np.repeat(shape_mask_1d[:, :, np.newaxis], 3, axis=2))
+        shape_mask= jnp.float32(jnp.repeat(shape_mask_1d[:, :, jnp.newaxis], 3, axis=2))
         shape_render = shape_mask.copy()
 
         if self.grayscale:
@@ -94,10 +100,10 @@ class DeadLeavesGenerator:
         noOfDisks = 0
 
         #repeat until the entire mask is covered
-        while np.any(image.base_mask == 1):
+        while jnp.any(image.base_mask == 1):
 
             noOfDisks +=1
-            print(noOfDisks)
+            print(f"\r{noOfDisks}", end="", flush=True)
 
             #creating a disk mask
             shape_1d, radius = self.get_shape_mask()
@@ -108,10 +114,9 @@ class DeadLeavesGenerator:
             shape_mask,shape_render =self.render_shape(shape_mask_1d)
 
             image.addDisk(radius=radius, topLeft=[x_min, y_min], bottomRight=[x_max, y_max], shape_mask=shape_mask)
-            image.updateDiskVisibility()
 
-            image.resulting_image[x_min:x_max,y_min:y_max,:]*=np.uint8(1-shape_mask)
-            image.resulting_image[x_min:x_max,y_min:y_max,:]+=np.uint8(shape_render)
+            image.resulting_image = image.resulting_image.at[x_min:x_max,y_min:y_max,:].multiply(jnp.uint8(1-shape_mask))
+            image.resulting_image = image.resulting_image.at[x_min:x_max,y_min:y_max,:].add(jnp.uint8(shape_render))
         
         print("dead_leaves stack created with", noOfDisks, "disks")
 
@@ -124,11 +129,11 @@ class DeadLeavesGenerator:
             image = self.generated_images[-1]
         if blur or ds:
             if blur:
-                blur_value = np.random.uniform(1,3)
+                blur_value = jax.random.uniform(key=self.key, minval=1,maxval=3)
                 image.resulting_image = cv2.GaussianBlur(image.resulting_image,(11,11),sigmaX =  blur_value, borderType = cv2.BORDER_DEFAULT)
             if ds:
                 image.resulting_image = cv2.resize(image.resulting_image,(0,0), fx = 1/2.,fy = 1/2. , interpolation = cv2.INTER_AREA)
-            image.resulting_image = np.uint8(image.resulting_image)
+            image.resulting_image = jnp.uint8(image.resulting_image)
 
 
 class DeadLeavesImage:
@@ -136,35 +141,37 @@ class DeadLeavesImage:
         self.width = width
         self.length = length
 
-        self.base_mask = np.ones((self.width, self.length), dtype=int)
-        self.resulting_image = np.ones((width,width,3), dtype = np.uint8)
+        self.base_mask = jnp.ones((self.width, self.length), dtype=int)
+        self.resulting_image = jnp.ones((width,width,3), dtype = jnp.uint8)
 
         self.disks = []
         self.diskCount = 0
-        self.disk_visibility = None
+        self.disk_visibility = jnp.zeros((self.width, self.length), dtype=int)
 
     def addDisk(self, radius, topLeft, bottomRight, shape_mask):
         self.diskCount+=1
         disk = Disk(id=self.diskCount, radius=radius, topLeft=topLeft, bottomRight=bottomRight, shape_mask=shape_mask)
         self.disks.append(disk)
 
-    def updateDiskVisibility(self):
-        pass
+        #update visibility matrix
+
+        if shape_mask.ndim == 3:
+            shape_mask = shape_mask.any(axis=-1)
+
+        disk_id_expanded = jnp.full(shape_mask.shape[:2], disk.id) #the shape needs to be broadcast while using jnp.where
+
+        current_visibility = self.disk_visibility[topLeft[0]:bottomRight[0], topLeft[1]:bottomRight[1]]
+        updated_visibility = jnp.where(shape_mask, disk_id_expanded, current_visibility)
+        self.disk_visibility = self.disk_visibility.at[topLeft[0]:bottomRight[0], topLeft[1]:bottomRight[1]].set(updated_visibility)
+
+    def visualizeDiskVisibility(self):
+        plt.imshow(self.disk_visibility)
+        plt.show()
         
-    def get_shape_mask(self):
-        tmp = (self.rmax ** (1-self.alpha)) + ((self.rmin ** (1-self.alpha)) - (self.rmax ** (1-self.alpha))) * np.random.random()
-        radius = tmp ** (-1/(self.alpha - 1))
-
-        L = np.arange(-radius,radius + 1,dtype = np.int32)
-        X, Y = np.meshgrid(L, L)
-        shape_1d = np.array((X ** 2 + Y ** 2) <= radius ** 2,dtype = bool)
-
-        return (shape_1d, radius)
-
 
 class Disk:
     def __init__(self, id, topLeft, bottomRight, radius, shape_mask):
-        self.id = id
+        self.id = id #starts from 1
 
         #coordinates
         self.topLeft = topLeft
