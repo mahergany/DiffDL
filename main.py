@@ -8,7 +8,7 @@ from skimage.color import rgb2gray
 import numpy as np
 from time import time
 
-with open('config.yaml', 'r') as file:
+with open('configs/config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
     rmin = config['params']['rmin']
@@ -29,8 +29,14 @@ with open('config.yaml', 'r') as file:
 output_path = output_directory + f'/{category}/'
 os.makedirs(output_directory, exist_ok=True)
 files = os.listdir(output_path)
-files.sort()
-index = (int(files[-1].split('_')[-1].split('.')[0]) + 1) if files else 0
+
+indices = []
+for f in files:
+    try:
+        indices.append(int(f.split('_')[-1].split('.')[0]))
+    except (ValueError, IndexError):
+        continue
+index = max(indices) + 1 if indices else 0
 
 
 #init a DL generation object that will generate images with set parameters
@@ -42,9 +48,9 @@ for i in range(0, no_of_images):
     t0 = time()
     #generation of a dead leaves image based on the parameters
     image = object.generate()
-    object.postprocess(image)
+    # object.postprocess(image)
 
-    skio.imsave(f'{output_directory}/generated_{category}_{index}.png', np.uint8(np.clip(255*rgb2gray(image.resulting_image),0,255)))
+    skio.imsave(f'{output_directory}/{category}/generated_{category}_{index}.png', np.uint8(np.clip(255*rgb2gray(image.resulting_image),0,255)))
     print('Time taken:', time()-t0)
 
     images.append(image)

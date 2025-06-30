@@ -1,0 +1,28 @@
+settings:
+  width: 500
+  length: 500
+  no_of_images: 1
+  source_directory: 'C:/Users/mahee/Desktop/dead leaves project/DiffDL/source_images'
+  output_directory: 'C:/Users/mahee/Desktop/dead leaves project/DiffDL/runs'
+  category: 'beach'
+  # category: 'beach'
+
+#check random/optimal initialization values
+params:
+  rmin: 1
+  rmax: 1000
+  alpha: 3.0
+
+color:
+  #temporarily sampling from a given set of images
+  color_path: "C:/Users/mahee/Desktop/dead leaves project/DiffDL/source_images/beach.jpg"
+
+  #temporarily keeping the color scale grayscale for simplicity
+  grayscale: True
+
+  uniform_sampling: False
+
+training:
+  iterations: 0
+  
+
