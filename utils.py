@@ -3,6 +3,7 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import yaml
+import os
 
 def sampling_grayscale_histogram(source_image, grayscale=True, visualize=False):
     
@@ -43,9 +44,31 @@ def sampling_rgb_histogram():
 def sampling_uniform_distribution():
     return np.random.uniform(0,255)
 
+def batch_rgb_to_grayscale(rgb_dir_path):
+    grayscale_dir_path = os.path.join(rgb_dir_path, 'grayscale')
+    os.makedirs(grayscale_dir_path, exist_ok=True)
+    
+    for file in os.listdir(rgb_dir_path):
+        file_path = os.path.join(rgb_dir_path, file)
+        
+        if not os.path.isfile(file_path):
+            continue
+
+        rgb_img = cv2.imread(file_path)
+
+        if rgb_img is None:
+            print('Could not read ', file_path)
+            continue
+
+        gray_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2GRAY)
+        cv2.imwrite(os.path.join(grayscale_dir_path, file), gray_img)
+
+
 if __name__ == '__main__':
 
-    with open('config.yaml', 'r') as file:
-        config = yaml.safe_load(file)
-    value = sampling_grayscale_histogram(config['color']['color_path'], visualize=True)
-    print(value)
+    # with open('config.yaml', 'r') as file:
+    #     config = yaml.safe_load(file)
+    # value = sampling_grayscale_histogram(config['color']['color_path'], visualize=True)
+    # print(value)
+
+    batch_rgb_to_grayscale(r'C:/Users/mahee/Desktop/dead leaves project/DiffDL/source_images/forest')

@@ -1,3 +1,5 @@
+#Taken from: https://github.com/matthias-wright/jax-fid
+
 import jax
 from jax import lax
 from jax.nn import initializers

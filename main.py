@@ -50,7 +50,7 @@ for i in range(0, no_of_images):
     image = object.generate()
     # object.postprocess(image)
 
-    skio.imsave(f'{output_directory}/{category}/generated_{category}_{index}.png', np.uint8(np.clip(255*rgb2gray(image.resulting_image),0,255)))
+    skio.imsave(f'{output_directory}/{category}/generated_{category}_{index}.jpg', np.uint8(np.clip(255*rgb2gray(image.resulting_image),0,255)))
     print('Time taken:', time()-t0)
 
     images.append(image)
