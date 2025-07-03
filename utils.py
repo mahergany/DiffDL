@@ -4,6 +4,7 @@ import random
 import matplotlib.pyplot as plt
 import yaml
 import os
+from datetime import datetime
 
 def sampling_grayscale_histogram(source_image, grayscale=True, visualize=False):
     
@@ -63,6 +64,14 @@ def batch_rgb_to_grayscale(rgb_dir_path):
         gray_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2GRAY)
         cv2.imwrite(os.path.join(grayscale_dir_path, file), gray_img)
 
+        return grayscale_dir_path
+
+def add_log(path, message, should_print=True):
+    with open(path, 'a') as f:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        f.write(f"\n{timestamp} - {message}")
+        if should_print:
+            print(f"{timestamp} - {message}")
 
 if __name__ == '__main__':
 

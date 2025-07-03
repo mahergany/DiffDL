@@ -17,6 +17,13 @@ def compute_data_distribution(images_path, apply_fn, fn_params, isGenerated=True
 
     #go through all image files and resize
     for file in tqdm(os.listdir(images_path), f"Loading {'generated' if isGenerated else 'source'} images"):
+
+        #check for a precomputed file
+        if os.path.join(images_path, file).endswith('.npz'):
+            stats=np.load(os.path.join(images_path, file))
+            mu,sigma = stats['mu'],stats['sigma']
+            return mu, sigma
+
         if grayscale:
             img = cv2.imread(os.path.join(images_path, file))
 
@@ -52,6 +59,8 @@ def compute_data_distribution(images_path, apply_fn, fn_params, isGenerated=True
 
     mu = np.mean(activations, axis=0)
     sigma = np.cov(activations, rowvar=False)
+
+    np.savez(os.path.join(images_path, 'stats'), mu=mu, sigma=sigma)
 
     return mu, sigma
 

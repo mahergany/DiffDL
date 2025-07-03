@@ -3,3 +3,5 @@ __pycache__/
 generated_images/
 source_images/
 npy/
+runs/
+pseudocode.txt

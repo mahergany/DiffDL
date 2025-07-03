@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import random
 import time
 import math
-from utils import sampling_grayscale_histogram, sampling_rgb_histogram, sampling_uniform_distribution
+from utils import sampling_grayscale_histogram, sampling_rgb_histogram, sampling_uniform_distribution, add_log
 import cv2
 import matplotlib.pyplot as plt
 import gc
@@ -16,36 +16,41 @@ import json
 dict_instance = np.load('npy/dict.npy', allow_pickle=True)
 
 class DeadLeavesGenerator:
-    def __init__(self, rmin, rmax, alpha, width, length, grayscale, color_path, uniform_sampling):
+    def __init__(self, source_dir_path, rmin=1, rmax=1000, alpha=3, width=500, length=500, grayscale=True, uniform_sampling=False, log_path=None):
         self.rmin = rmin
         self.rmax = rmax
         self.alpha = alpha
         self.width = width
-        self.length = width # for now keeping it width by width
+        self.length = length
 
         self.grayscale = grayscale
-        self.color_path = color_path
         self.uniform_sampling = uniform_sampling
-        self.color_image = cv2.imread(color_path, cv2.IMREAD_GRAYSCALE) #to speed up process
+
+        self.source_dir_path = source_dir_path
+        self.source_images_path = [os.path.join(source_dir_path, file) for file in os.listdir(source_dir_path) if file.lower().endswith(('.png','.jpg','.jpeg'))]
+        self.color_image = None
 
         self.generated_images = []
 
-        self.key = jax.random.key(int(time.time() * 1000))
+        self.key = None
 
         self.subkey_buffer = []
         self.subkey_buffer_size = 50000
         
+        self.log_path = log_path
+
         self.key_index = 0
         self.batch_subkey_generation()
 
 
     def batch_subkey_generation(self):
-        print("Generating subkeys")
+        print("Generating subkeys") if not self.log_path else add_log(self.log_path, "Generating subkeys")
+        self.key = jax.random.key(int(time.time() * 1000))
         self.subkey_buffer = []
         for i in range(self.subkey_buffer_size):
             self.key, pos_x_key, pos_y_key, radius_key = jax.random.split(self.key, 4)
             self.subkey_buffer.append([self.key, pos_x_key, pos_y_key, radius_key])
-        print(f"Done generating {self.subkey_buffer_size} subkeys")
+        print(f"Done generating {self.subkey_buffer_size} subkeys") if not self.log_path else add_log(self.log_path, f"Done generating {self.subkey_buffer_size} subkeys")
 
     def get_next_subkeys(self):
         self.key_index+=1
@@ -128,6 +133,9 @@ class DeadLeavesGenerator:
         return(shape_mask,shape_render)
         
     def generate(self):
+        #choose random source image for color sampling
+        i = np.random.randint(0, len(self.source_images_path))
+        self.color_image = cv2.imread(self.source_images_path[i], cv2.IMREAD_GRAYSCALE) #to speed up process
 
         image = DeadLeavesImage(self.width, self.length)
 
@@ -164,7 +172,7 @@ class DeadLeavesGenerator:
 
         print()
         
-        print("dead_leaves stack created with", noOfDisks, "disks")
+        print(f"Dead Leaves stack created with {noOfDisks} disks") if not self.log_path else add_log(self.log_path, f"dead_leaves stack created with {noOfDisks} disks")
 
         self.generated_images.append(image.resulting_image)
             
@@ -227,13 +235,7 @@ class Disk:
         self.topLeft = topLeft
         self.bottomRight = bottomRight
 
-        # self.x_min = topLeft[0]
-        # self.x_max = bottomRight[0]
-        # self.y_min = topLeft[1]
-        # self.y_max = bottomRight[1]
-
         self.radius = radius
-        # self.mask = shape_mask
 
 if __name__ == '__main__':
     generator = DeadLeavesGenerator(rmin=1, rmax=1000, alpha=3, width=500, length=500, grayscale=True, color_path='C:/Users/mahee/Desktop/dead leaves project/DiffDL/source_images/tree.jpg', uniform_sampling=False)

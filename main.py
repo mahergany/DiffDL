@@ -15,7 +15,6 @@ with open('configs/config.yaml', 'r') as file:
     rmax = config['params']['rmax']
     alpha = config['params']['alpha']
     grayscale = config['color']['grayscale']
-    color_path = config['color']['color_path']
     uniform_sampling = config['color']['uniform_sampling']
 
     no_of_images = config['settings']['no_of_images']
@@ -24,9 +23,10 @@ with open('configs/config.yaml', 'r') as file:
     category = config['settings']['category']
     source_directory = config['settings']['source_directory']
     output_directory = config['settings']['output_directory']
+    postprocess = config['settings']['postprocess']
 
 #setting up generation folder
-output_path = output_directory + f'/{category}/'
+output_path = output_directory
 os.makedirs(output_directory, exist_ok=True)
 files = os.listdir(output_path)
 
@@ -40,7 +40,7 @@ index = max(indices) + 1 if indices else 0
 
 
 #init a DL generation object that will generate images with set parameters
-object = DeadLeavesGenerator(rmin, rmax, alpha, width, length, grayscale, color_path, uniform_sampling)
+object = DeadLeavesGenerator(source_dir_path=source_directory, rmin=rmin, rmax=rmax, alpha=alpha, width=width, length=length, grayscale=grayscale, uniform_sampling=uniform_sampling)
 images = []
 
 # for i in range(0, no_of_images):
@@ -48,9 +48,10 @@ for i in range(0, no_of_images):
     t0 = time()
     #generation of a dead leaves image based on the parameters
     image = object.generate()
-    # object.postprocess(image)
+    if postprocess:
+        object.postprocess(image)
 
-    skio.imsave(f'{output_directory}/{category}/generated_{category}_{index}.jpg', np.uint8(np.clip(255*rgb2gray(image.resulting_image),0,255)))
+    skio.imsave(f'{output_directory}/generated_{category}_{index}.jpg', np.uint8(np.clip(255*rgb2gray(image.resulting_image),0,255)))
     print('Time taken:', time()-t0)
 
     images.append(image)
