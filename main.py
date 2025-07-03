@@ -24,6 +24,7 @@ with open('configs/config.yaml', 'r') as file:
     source_directory = config['settings']['source_directory']
     output_directory = config['settings']['output_directory']
     postprocess = config['settings']['postprocess']
+    enableJax = config['settings']['enableJax']
 
 #setting up generation folder
 output_path = output_directory
@@ -40,7 +41,7 @@ index = max(indices) + 1 if indices else 0
 
 
 #init a DL generation object that will generate images with set parameters
-object = DeadLeavesGenerator(source_dir_path=source_directory, rmin=rmin, rmax=rmax, alpha=alpha, width=width, length=length, grayscale=grayscale, uniform_sampling=uniform_sampling)
+object = DeadLeavesGenerator(source_dir_path=source_directory, rmin=rmin, rmax=rmax, alpha=alpha, width=width, length=length, grayscale=grayscale, uniform_sampling=uniform_sampling, enableJax=enableJax)
 images = []
 
 # for i in range(0, no_of_images):
@@ -48,11 +49,11 @@ for i in range(0, no_of_images):
     t0 = time()
     #generation of a dead leaves image based on the parameters
     image = object.generate()
+    print('Time taken:', time()-t0)
     if postprocess:
         object.postprocess(image)
 
-    skio.imsave(f'{output_directory}/generated_{category}_{index}.jpg', np.uint8(np.clip(255*rgb2gray(image.resulting_image),0,255)))
-    print('Time taken:', time()-t0)
+    skio.imsave(f'{output_directory}/generated_{category}_{index}.png', np.uint8(np.clip(255*rgb2gray(image.resulting_image),0,255)))
 
     images.append(image)
     index+=1

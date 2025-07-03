@@ -7,6 +7,7 @@ settings:
   category: 'forest'
   # category: 'beach'
   postprocess: False
+  enableJax: False
 
 params:
   rmin: 1

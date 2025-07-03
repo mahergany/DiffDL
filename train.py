@@ -9,6 +9,7 @@ import numpy as np, cv2
 from time import time
 from utils import add_log, batch_rgb_to_grayscale
 from loss.fid import get_fid
+import jax
 
 def train():
     with open('configs/train_config.yaml') as file:
@@ -85,6 +86,8 @@ def train():
         add_log(log_path, "FID Score: ", fid_score)
 
         #TODO: update parameters atp through jax automatic differentiation
+        grad_fid = jax.grad(get_fid)
+        
 
 
 if __name__ == '__main__':
