@@ -1,0 +1,4 @@
+name: diffdl
+channels:
+  - defaults
+prefix: C:\Users\mahee\anaconda3\envs\diffdl
