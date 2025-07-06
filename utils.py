@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import yaml
 import os
 from datetime import datetime
+import jax
+import jax.numpy as jnp
 
 def sampling_grayscale_histogram(source_image, grayscale=True, visualize=False):
     
@@ -72,6 +74,8 @@ def add_log(path, message, should_print=True):
         f.write(f"\n{timestamp} - {message}")
         if should_print:
             print(f"{timestamp} - {message}")
+
+
 
 if __name__ == '__main__':
 

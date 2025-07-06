@@ -2,12 +2,12 @@ settings:
   width: 500
   length: 500
   no_of_images: 1
-  source_directory: 'C:/Users/mahee/Desktop/dead leaves project/DiffDL/source_images/forest'
-  output_directory: 'C:/Users/mahee/Desktop/dead leaves project/DiffDL/generated_images/forest'
+  source_directory: './source_images/forest'
+  output_directory: './generated_images/forest'
   category: 'forest'
   # category: 'beach'
   postprocess: False
-  enableJax: False
+  enableJax: True
 
 params:
   rmin: 1

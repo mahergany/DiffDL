@@ -2,7 +2,6 @@
 
 import os
 import yaml
-from dead_leaves import DeadLeavesGenerator
 import skimage.io as skio
 from skimage.color import rgb2gray
 import numpy as np
@@ -39,6 +38,10 @@ for f in files:
         continue
 index = max(indices) + 1 if indices else 0
 
+if enableJax:
+    from dead_leaves_jax import DeadLeavesGenerator
+else:
+    from dead_leaves import DeadLeavesGenerator
 
 #init a DL generation object that will generate images with set parameters
 object = DeadLeavesGenerator(source_dir_path=source_directory, rmin=rmin, rmax=rmax, alpha=alpha, width=width, length=length, grayscale=grayscale, uniform_sampling=uniform_sampling, enableJax=enableJax)

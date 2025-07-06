@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import random
 import time
 import math
-from utils import sampling_grayscale_histogram, sampling_rgb_histogram, sampling_uniform_distribution, add_log
+from utils import sampling_grayscale_histogram, sampling_rgb_histogram, sampling_uniform_distribution, add_log, get_radius
 import cv2
 import matplotlib.pyplot as plt
 import gc
@@ -35,15 +35,12 @@ class DeadLeavesGenerator:
         self.key = None
 
         self.subkey_buffer = []
-        self.subkey_buffer_size = 50000
+        self.subkey_buffer_size = 3000
         
         self.log_path = log_path
 
-        self.enableJax=enableJax
-
-        if self.enableJax:
-            self.key_index = 0  
-            self.batch_subkey_generation() 
+        self.key_index = 0  
+        self.batch_subkey_generation() 
 
     def batch_subkey_generation(self):
         print("Generating subkeys") if not self.log_path else add_log(self.log_path, "Generating subkeys")
@@ -61,33 +58,11 @@ class DeadLeavesGenerator:
             self.key_index=0
         return self.subkey_buffer[self.key_index]
 
-    def get_shape_mask(self, subkey=None):
-        # self.key, subkey = jax.random.split(self.key)
-        #calculating radius
-        if self.enableJax:
-            tmp = (self.rmax ** (1-self.alpha)) + ((self.rmin ** (1-self.alpha)) - (self.rmax ** (1-self.alpha))) * jax.random.uniform(subkey)
-        else:
-            tmp = (self.rmax ** (1-self.alpha)) + ((self.rmin ** (1-self.alpha)) - (self.rmax ** (1-self.alpha))) * np.random.random()
-        
-        radius = int(tmp ** (-1/(self.alpha - 1)))
-
-        #plotting shape
-        # L = jnp.arange(-radius,radius + 1,dtype = jnp.int32)
-        # X, Y = jnp.meshgrid(L, L) #coordinate space definition based on radius
-        # shape_1d = jnp.array((X ** 2 + Y ** 2) <= radius ** 2,dtype = bool) #circle definition
-
-        shape_1d = jnp.array(dict_instance[()][str(radius)])
-
-        return (shape_1d, radius)
-
     def update_base_mask(self, image, shape_1d, pos_x_key=None, pos_y_key=None):
         # self.key, pos_x_key, pos_y_key = jax.random.split(self.key,3)
         width_shape, length_shape = shape_1d.shape
         # pos = [jax.random.randint(key=self.key, shape=(), minval=0, maxval=self.width), jax.random.randint(key=self.key, shape=(), minval=0, maxval=self.width)] #get random coordinates for the center of the disk
-        if self.enableJax:  
-            pos = [jax.random.randint(key=pos_x_key, shape=(), minval=0, maxval=self.width), jax.random.randint(key=pos_y_key, shape=(), minval=0, maxval=self.width)] #get random coordinates for the center of the disk
-        else:
-            pos = [np.random.randint(0, self.width), np.random.randint(0, self.width)]
+        pos = [jax.random.randint(key=pos_x_key, shape=(), minval=0, maxval=self.width), jax.random.randint(key=pos_y_key, shape=(), minval=0, maxval=self.width)] #get random coordinates for the center of the disk
 
         #mapping into top left and bottom right coordinates
         x_min = max(0, pos[0] - width_shape//2)
@@ -95,44 +70,17 @@ class DeadLeavesGenerator:
         y_min = max(0, pos[1] - length_shape//2)
         y_max = min(self.width, pos[1] + length_shape//2 + 1)
 
-        #the following is needed when disk dictionary is not used
-        
-        # shape_x_start = max(0,width_shape//2-pos[0])
-        # shape_x_end = min(width_shape,self.width+width_shape//2-pos[0])
-        # shape_y_start = max(0,length_shape//2-pos[1])
-        # shape_y_end = min(length_shape,self.width+length_shape//2-pos[1])
-
-        # target_width = x_max - x_min
-        # target_height = y_max - y_min
-        # shape_crop_width = shape_x_end - shape_x_start
-        # shape_crop_height = shape_y_end - shape_y_start
-        
-        # #updating the max parameters to ensure uniformity
-        # shape_x_end = shape_x_start + min(target_width, shape_crop_width)
-        # shape_y_end = shape_y_start + min(target_height, shape_crop_height)
-        # x_max = x_min + min(target_width, shape_crop_width)
-        # y_max = y_min + min(target_height, shape_crop_height)
-        
-        # shape_mask_1d = image.base_mask[x_min:x_max, y_min:y_max].copy()
-        # shape_1d = shape_1d[shape_x_start:shape_x_end, shape_y_start:shape_y_end]
-
         shape_mask_1d = image.base_mask[x_min:x_max,y_min:y_max].copy() #contains the cropped binary image/current uncovered area where the shape will go
         shape_1d = shape_1d[max(0,width_shape//2-pos[0]):min(width_shape,self.width+width_shape//2-pos[0]),max(0,length_shape//2-pos[1]):min(length_shape,self.width+length_shape//2-pos[1])]
 
         shape_mask_1d *= shape_1d
-        if self.enableJax:
-            image.base_mask = image.base_mask.at[x_min:x_max, y_min:y_max].set(image.base_mask[x_min:x_max, y_min:y_max] * jnp.logical_not(shape_mask_1d))
-        else:
-            image.base_mask[x_min:x_max, y_min:y_max] &= ~shape_mask_1d 
+        image.base_mask = image.base_mask.at[x_min:x_max, y_min:y_max].set(image.base_mask[x_min:x_max, y_min:y_max] * jnp.logical_not(shape_mask_1d))
         return(x_min,x_max,y_min,y_max,shape_mask_1d)
 
     def render_shape(self, shape_mask_1d):
         width_shape,length_shape = shape_mask_1d.shape[0],shape_mask_1d.shape[1]
 
-        if self.enableJax:
-            shape_mask= jnp.float32(jnp.repeat(shape_mask_1d[:, :, jnp.newaxis], 3, axis=2))
-        else:
-            shape_mask= np.float32(np.repeat(shape_mask_1d[:, :, np.newaxis], 3, axis=2))
+        shape_mask= jnp.float32(jnp.repeat(shape_mask_1d[:, :, jnp.newaxis], 3, axis=2))
         
         shape_render = shape_mask.copy()
 
@@ -149,45 +97,70 @@ class DeadLeavesGenerator:
 
         return(shape_mask,shape_render)
 
+    #isolating the random operations
+    # def get_radius(self, subkey1, rmax, rmin, alpha):
+
+    #     tmp = (rmax ** (1-alpha)) + ((rmin ** (1-alpha)) - (rmax ** (1-alpha))) * jax.random.uniform(subkey1)
+    #     radius = int(tmp ** (-1/(alpha - 1)))
+
+    #     return radius
+
+    def get_position(self):
+        pass
+        
     def generate(self):
         #choose random source image for color sampling
         i = np.random.randint(0, len(self.source_images_path))
         self.color_image = cv2.imread(self.source_images_path[i], cv2.IMREAD_GRAYSCALE) #to speed up process
 
-        image = DeadLeavesImage(self.width, self.length, self.enableJax)
+        image = DeadLeavesImage(self.width, self.length)
 
         noOfDisks = 0
 
         #repeat until the entire mask is covered (slow operation)
         # while jnp.any(image.base_mask == 1):
+
+        t0 = time.time() 
+        for i in range(2000):
+            get_radius(self.get_next_subkeys()[3], self.rmax, self.rmin, self.alpha)
+
+        print('get_radius 1000 times: ',time.time()-t0)
+
+        N = 2000  # number of disks to add in batch
+        main_key = jax.random.PRNGKey(int(time.time() * 1000))
+        all_keys = jax.random.split(main_key, N * 3)
+        radius_keys = all_keys[:N]
+        t0 = time.time() 
+        batched_get_radii = jax.vmap(get_radius, in_axes=0, out_axes=0)
+        batched_get_radii(radius_keys, self.rmax, self.rmin, self.alpha)
+        print('batched_get_radius: ',time.time()-t0)
         
+                                             
         #(faster operation)
         for i in range(0,2000):
 
             noOfDisks +=1
             print(f"\rDisk no. {noOfDisks}", end="", flush=True)
 
-            subkeys = self.get_next_subkeys() if self.enableJax else None
+            subkeys = self.get_next_subkeys()
 
-            #creating a disk mask
-            shape_1d, radius = self.get_shape_mask(subkey=subkeys[3] if self.enableJax else None)
+            #jit operation
+            radius = get_radius(subkeys[3], self.rmax, self.rmin, self.alpha)
+            
+            shape_1d = jnp.array(dict_instance[()][str(radius)])
+
+            #jit operation for getting position
+            # get_pos()
 
             #getting the position and updating the base mask
-            if self.enableJax:
-                x_min,x_max,y_min,y_max,shape_mask_1d = self.update_base_mask(image=image,shape_1d=shape_1d, pos_x_key=subkeys[1], pos_y_key=subkeys[2])
-            else:
-                x_min,x_max,y_min,y_max,shape_mask_1d = self.update_base_mask(image=image,shape_1d=shape_1d)
+            x_min,x_max,y_min,y_max,shape_mask_1d = self.update_base_mask(image=image,shape_1d=shape_1d, pos_x_key=subkeys[1], pos_y_key=subkeys[2])
 
             shape_mask,shape_render =self.render_shape(shape_mask_1d)
 
             image.addDisk(radius=radius, topLeft=[x_min, y_min], bottomRight=[x_max, y_max], shape_mask=shape_mask)
 
-            if self.enableJax:
-                image.resulting_image = image.resulting_image.at[x_min:x_max,y_min:y_max,:].multiply(jnp.uint8(1-shape_mask))
-                image.resulting_image = image.resulting_image.at[x_min:x_max,y_min:y_max,:].add(jnp.uint8(shape_render))
-            else:
-                image.resulting_image[x_min:x_max,y_min:y_max,:]*=np.uint8(1-shape_mask)
-                image.resulting_image[x_min:x_max,y_min:y_max,:]+=np.uint8(shape_render)
+            image.resulting_image = image.resulting_image.at[x_min:x_max,y_min:y_max,:].multiply(jnp.uint8(1-shape_mask))
+            image.resulting_image = image.resulting_image.at[x_min:x_max,y_min:y_max,:].add(jnp.uint8(shape_render))
 
         print()
         
@@ -201,8 +174,7 @@ class DeadLeavesGenerator:
         #TODO: implement this through self defined jax functions to remove np dependency
         #currently switching to np for cv2 implementation
 
-        if self.enableJax:
-            resulting_image = np.array(image.resulting_image)
+        resulting_image = np.array(image.resulting_image)
 
         if blur or ds:
             if blur:
@@ -214,12 +186,10 @@ class DeadLeavesGenerator:
                 resulting_image = cv2.resize(resulting_image,(0,0), fx = 1/2.,fy = 1/2. , interpolation = cv2.INTER_AREA)
             resulting_image = np.uint8(resulting_image)
 
-        if self.enableJax:
-            image.resulting_image = jnp.array(resulting_image)
+        image.resulting_image = jnp.array(resulting_image)
 
 class DeadLeavesImage:
-    def __init__(self, width, length, enableJax):
-        self.enableJax = enableJax
+    def __init__(self, width, length):
 
         self.width = width
         self.length = length
@@ -227,14 +197,9 @@ class DeadLeavesImage:
         self.disks = []
         self.diskCount = 0
 
-        if self.enableJax:
-            self.base_mask = jnp.ones((self.width, self.length), dtype=int)
-            self.resulting_image = jnp.ones((width,width,3), dtype = jnp.uint8)
-            self.disk_visibility = jnp.zeros((self.width, self.length), dtype=int)
-        else:
-            self.base_mask = np.ones((self.width, self.length), dtype=int)
-            self.resulting_image = np.ones((width,width,3), dtype = np.uint8)
-            self.disk_visibility = np.zeros((self.width, self.length), dtype=int)
+        self.base_mask = jnp.ones((self.width, self.length), dtype=int)
+        self.resulting_image = jnp.ones((width,width,3), dtype = jnp.uint8)
+        self.disk_visibility = jnp.zeros((self.width, self.length), dtype=int)
 
 
     def addDisk(self, radius, topLeft, bottomRight, shape_mask):
@@ -248,22 +213,16 @@ class DeadLeavesImage:
         if shape_mask.ndim == 3:
             shape_mask = shape_mask.any(axis=-1)
         
-        if self.enableJax:
-            disk_id_expanded = jnp.full(shape_mask.shape[:2], disk.id) #the shape needs to be broadcast while using jnp.where so for consistency
+        disk_id_expanded = jnp.full(shape_mask.shape[:2], disk.id) #the shape needs to be broadcast while using jnp.where so for consistency
 
-            current_visibility = self.disk_visibility[topLeft[0]:bottomRight[0], topLeft[1]:bottomRight[1]]
-            updated_visibility = jnp.where(shape_mask, disk_id_expanded, current_visibility)
-            self.disk_visibility = self.disk_visibility.at[topLeft[0]:bottomRight[0], topLeft[1]:bottomRight[1]].set(updated_visibility)
-        else:
-            disk_id_expanded = np.full(shape_mask.shape[:2], disk.id)
-            region = self.disk_visibility[topLeft[0]:bottomRight[0], topLeft[1]:bottomRight[1]]
-            region[shape_mask] = disk.id
-            self.disk_visibility[topLeft[0]:bottomRight[0], topLeft[1]:bottomRight[1]] = region
+        current_visibility = self.disk_visibility[topLeft[0]:bottomRight[0], topLeft[1]:bottomRight[1]]
+        updated_visibility = jnp.where(shape_mask, disk_id_expanded, current_visibility)
+        self.disk_visibility = self.disk_visibility.at[topLeft[0]:bottomRight[0], topLeft[1]:bottomRight[1]].set(updated_visibility)
     
     def visualizeDiskVisibility(self):
         plt.imshow(self.disk_visibility)
         plt.show()
-        
+
 
 class Disk:
     def __init__(self, id, topLeft, bottomRight, radius, shape_mask):
