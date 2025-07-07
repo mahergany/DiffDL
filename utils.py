@@ -11,7 +11,7 @@ import jax.numpy as jnp
 def sampling_grayscale_histogram(source_image, grayscale=True, visualize=False):
     
     #slow operation
-    # source_image = cv2.imread(source_image_path, cv2.IMREAD_GRAYSCALE
+    # source_image = cv2.imread(source_image_path, cv2.IMREAD_GRAYSCALE)
     
     if source_image is None:
         raise FileNotFoundError('Invalid path')
@@ -79,9 +79,9 @@ def add_log(path, message, should_print=True):
 
 if __name__ == '__main__':
 
-    # with open('config.yaml', 'r') as file:
-    #     config = yaml.safe_load(file)
-    # value = sampling_grayscale_histogram(config['color']['color_path'], visualize=True)
+    with open('configs/config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+    value = sampling_grayscale_histogram('C:/Users/mahee/Desktop/dead leaves project/DiffDL/source_images/forest/00000015.jpg', visualize=True)
     # print(value)
 
-    batch_rgb_to_grayscale(r'C:/Users/mahee/Desktop/dead leaves project/DiffDL/source_images/forest')
+    # batch_rgb_to_grayscale(r'C:/Users/mahee/Desktop/dead leaves project/DiffDL/source_images/forest')

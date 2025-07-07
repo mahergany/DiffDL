@@ -11,6 +11,7 @@ params:
   rmin: 1
   rmax: 1000
   alpha: 3.0
+  num_disks: 150000
 
 color:
   #temporarily keeping the color scale grayscale for simplicity

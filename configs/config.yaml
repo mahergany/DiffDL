@@ -7,8 +7,7 @@ settings:
   category: 'forest'
   # category: 'beach'
   postprocess: False
-  enableJax: True
-
+  enableJax: False
 params:
   rmin: 1
   rmax: 1000

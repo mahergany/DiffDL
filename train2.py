@@ -18,11 +18,15 @@ def train():
         output_dir = config['settings']['output_directory']
         no_of_images = config['settings']['no_of_images']
         category = config['settings']['category']
+        width = config['settings']['width']
+        length = config['settings']['length']
 
         #params
         rmin = config['params']['rmin']
         rmax = config['params']['rmin']
         alpha = config['params']['alpha']
+
+        num_disks = config['params']['num_disks']
 
         grayscale=config['color']['grayscale']
 
@@ -51,7 +55,6 @@ def train():
     with open(log_path, 'w'):
         pass
 
-
     for iter in range(1, iterations+1):
 
         add_log(log_path, f"Iteration {iter}")
@@ -63,9 +66,7 @@ def train():
         os.makedirs(generation_dir, exist_ok=True)
 
         generated_images = []
-
         
-
         for i in range(no_of_images):
             add_log(log_path, f"Generating Dead Leaves image {i+1}/{no_of_images}")
 
@@ -73,11 +74,12 @@ def train():
 
             key = jax.random.key(int(time.time() * 1000))
 
-            image = generate_dead_leaves_image(rmin, rmax, alpha, key)
+
+            image = generate_dead_leaves_image(rmin, rmax, alpha, width, length, source_images,num_disks, key)
 
             generated_images.append(image)
 
-            skio.imsave(f'{generation_dir}/generated_{category}_{i}.jpg', np.uint8(np.clip(255*rgb2gray(image.resulting_image),0,255)))
+            skio.imsave(f'{generation_dir}/generated_{category}_{i}.jpg', np.uint8(np.clip(255*rgb2gray(image),0,255)))
 
             add_log(log_path, f'Time taken:, {time()-t0}')
 
@@ -89,22 +91,6 @@ def train():
 
         #TODO: update parameters atp through jax automatic differentiation
         grad_fid = jax.grad(get_fid)
-        
-def batch_subkey_generation(self):
-    print("Generating subkeys") if not self.log_path else add_log(self.log_path, "Generating subkeys")
-    self.key = jax.random.key(int(time.time() * 1000))
-    self.subkey_buffer = []
-    for i in range(self.subkey_buffer_size):
-        self.key, pos_x_key, pos_y_key, radius_key = jax.random.split(self.key, 4)
-        self.subkey_buffer.append([self.key, pos_x_key, pos_y_key, radius_key])
-    print(f"Done generating {self.subkey_buffer_size} subkeys") if not self.log_path else add_log(self.log_path, f"Done generating {self.subkey_buffer_size} subkeys")
-
-def get_next_subkeys(self):
-    self.key_index+=1
-    if self.key_index >= self.subkey_buffer_size:
-        self.batch_subkey_generation()
-        self.key_index=0
-    return self.subkey_buffer[self.key_index]
 
 
 if __name__ == '__main__':

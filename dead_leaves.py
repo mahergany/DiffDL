@@ -81,9 +81,8 @@ class DeadLeavesGenerator:
         return (shape_1d, radius)
 
     def update_base_mask(self, image, shape_1d, pos_x_key=None, pos_y_key=None):
-        # self.key, pos_x_key, pos_y_key = jax.random.split(self.key,3)
         width_shape, length_shape = shape_1d.shape
-        # pos = [jax.random.randint(key=self.key, shape=(), minval=0, maxval=self.width), jax.random.randint(key=self.key, shape=(), minval=0, maxval=self.width)] #get random coordinates for the center of the disk
+        
         if self.enableJax:  
             pos = [jax.random.randint(key=pos_x_key, shape=(), minval=0, maxval=self.width), jax.random.randint(key=pos_y_key, shape=(), minval=0, maxval=self.width)] #get random coordinates for the center of the disk
         else:
@@ -127,7 +126,6 @@ class DeadLeavesGenerator:
         return(x_min,x_max,y_min,y_max,shape_mask_1d)
 
     def render_shape(self, shape_mask_1d):
-        width_shape,length_shape = shape_mask_1d.shape[0],shape_mask_1d.shape[1]
 
         if self.enableJax:
             shape_mask= jnp.float32(jnp.repeat(shape_mask_1d[:, :, jnp.newaxis], 3, axis=2))
@@ -162,7 +160,7 @@ class DeadLeavesGenerator:
         # while jnp.any(image.base_mask == 1):
         
         #(faster operation)
-        for i in range(0,2000):
+        for i in range(0,1):
 
             noOfDisks +=1
             print(f"\rDisk no. {noOfDisks}", end="", flush=True)
@@ -171,14 +169,18 @@ class DeadLeavesGenerator:
 
             #creating a disk mask
             shape_1d, radius = self.get_shape_mask(subkey=subkeys[3] if self.enableJax else None)
-
+            print(shape_1d.shape)
             #getting the position and updating the base mask
             if self.enableJax:
                 x_min,x_max,y_min,y_max,shape_mask_1d = self.update_base_mask(image=image,shape_1d=shape_1d, pos_x_key=subkeys[1], pos_y_key=subkeys[2])
             else:
                 x_min,x_max,y_min,y_max,shape_mask_1d = self.update_base_mask(image=image,shape_1d=shape_1d)
 
+            print(shape_mask_1d.shape)
+
             shape_mask,shape_render =self.render_shape(shape_mask_1d)
+            print(shape_mask.shape)
+            print(shape_render.shape)
 
             image.addDisk(radius=radius, topLeft=[x_min, y_min], bottomRight=[x_max, y_max], shape_mask=shape_mask)
 
