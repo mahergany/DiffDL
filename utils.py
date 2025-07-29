@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 import jax
 import jax.numpy as jnp
+from jax import lax
 
 def sampling_grayscale_histogram(source_image, grayscale=True, visualize=False):
     
@@ -75,6 +76,16 @@ def add_log(path, message, should_print=True):
         if should_print:
             print(f"{timestamp} - {message}")
 
+@jax.jit
+def get_radius(rmin, rmax, alpha, k1):
+
+    lax.stop_gradient(k1)
+
+    tmp = (rmax ** (1-alpha)) + ((rmin ** (1-alpha)) - (rmax ** (1-alpha))) * jax.random.uniform(k1)
+    # radius = int(tmp ** (-1 / (alpha - 1)))
+    radius = jnp.array((tmp ** (-1/(alpha - 1))), int)
+
+    return radius
 
 
 if __name__ == '__main__':

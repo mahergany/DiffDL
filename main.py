@@ -38,10 +38,11 @@ for f in files:
         continue
 index = max(indices) + 1 if indices else 0
 
-if enableJax:
-    from dead_leaves_jax import DeadLeavesGenerator
-else:
-    from dead_leaves import DeadLeavesGenerator
+# if enableJax:
+#     from dead_leaves_jax import DeadLeavesGenerator
+# else:
+#     from dead_leaves import DeadLeavesGenerator
+from dead_leaves import DeadLeavesGenerator
 
 #init a DL generation object that will generate images with set parameters
 object = DeadLeavesGenerator(source_dir_path=source_directory, rmin=rmin, rmax=rmax, alpha=alpha, width=width, length=length, grayscale=grayscale, uniform_sampling=uniform_sampling, enableJax=enableJax)
@@ -54,7 +55,7 @@ for i in range(0, no_of_images):
     image = object.generate()
     print('Time taken:', time()-t0)
     if postprocess:
-        object.postprocess(image)
+        object.postprocess(image, ds=False)
 
     skio.imsave(f'{output_directory}/generated_{category}_{index}.png', np.uint8(np.clip(255*rgb2gray(image.resulting_image),0,255)))
 

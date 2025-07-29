@@ -1,0 +1,11 @@
+8 - forest, without any correlation b/w the 2dgs and DL
+9 - beach, without any correlation b/w the 2dgs and DL, 1000 points
+10 - forest
+11 - beach w alpha values
+12 - forest w alpha values
+13 - forest w alpha values 2 (for consistency check)
+14 - beach w alpha values 2 (for consistency check)
+15 - beach w frequency loss
+16 - forest w frequency loss
+17 - forest w kl loss
+18 - beach w kl loss

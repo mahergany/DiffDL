@@ -16,7 +16,7 @@ import json
 dict_instance = np.load('npy/dict.npy', allow_pickle=True)
 
 class DeadLeavesGenerator:
-    def __init__(self, source_dir_path, rmin=1, rmax=1000, alpha=3, width=500, length=500, grayscale=True, uniform_sampling=False, log_path=None, enableJax=True):
+    def __init__(self, source_dir_path, source_image=False, rmin=1, rmax=1000, alpha=3, width=500, length=500, grayscale=True, uniform_sampling=False, log_path=None, enableJax=True):
         self.rmin = rmin
         self.rmax = rmax
         self.alpha = alpha
@@ -27,7 +27,7 @@ class DeadLeavesGenerator:
         self.uniform_sampling = uniform_sampling
 
         self.source_dir_path = source_dir_path
-        self.source_images_path = [os.path.join(source_dir_path, file) for file in os.listdir(source_dir_path) if file.lower().endswith(('.png','.jpg','.jpeg'))]
+        self.source_images_path = [os.path.join(source_dir_path, file) for file in os.listdir(source_dir_path) if file.lower().endswith(('.png','.jpg','.jpeg'))] if source_dir_path else [source_image]
         self.color_image = None
 
         self.generated_images = []
@@ -66,17 +66,17 @@ class DeadLeavesGenerator:
         #calculating radius
         if self.enableJax:
             tmp = (self.rmax ** (1-self.alpha)) + ((self.rmin ** (1-self.alpha)) - (self.rmax ** (1-self.alpha))) * jax.random.uniform(subkey)
+            radius = int(tmp ** (-1/(self.alpha - 1)))
+            shape_1d = jnp.array(dict_instance[()][str(radius)])
         else:
             tmp = (self.rmax ** (1-self.alpha)) + ((self.rmin ** (1-self.alpha)) - (self.rmax ** (1-self.alpha))) * np.random.random()
-        
-        radius = int(tmp ** (-1/(self.alpha - 1)))
+            radius = int(tmp ** (-1/(self.alpha - 1)))
+            shape_1d = dict_instance[()][str(radius)]
 
         #plotting shape
         # L = jnp.arange(-radius,radius + 1,dtype = jnp.int32)
         # X, Y = jnp.meshgrid(L, L) #coordinate space definition based on radius
         # shape_1d = jnp.array((X ** 2 + Y ** 2) <= radius ** 2,dtype = bool) #circle definition
-
-        shape_1d = jnp.array(dict_instance[()][str(radius)])
 
         return (shape_1d, radius)
 
@@ -90,9 +90,38 @@ class DeadLeavesGenerator:
 
         #mapping into top left and bottom right coordinates
         x_min = max(0, pos[0] - width_shape//2)
-        x_max = min(self.width, pos[0] + width_shape//2 + 1)
+        x_max = min(self.width, pos[0] + width_shape//2+1)
         y_min = max(0, pos[1] - length_shape//2)
-        y_max = min(self.width, pos[1] + length_shape//2 + 1)
+        y_max = min(self.width, pos[1] + length_shape//2+1)
+
+        # print(width_shape, length_shape)
+
+        # xmin = pos[0] - width_shape//2
+        # xmax = pos[0] + width_shape//2
+        # ymin =pos[1] - length_shape//2
+        # ymax = pos[1] + length_shape//2
+
+        # print()
+        # print(xmin, ymin)
+        # print(xmax, ymax)
+
+        # left_pad = np.maximum(0, xmin)
+        # # print('left pad: ', left_pad)
+        # right_pad =np.maximum(0, self.width-xmax)
+        # # print('right pad: ', right_pad)
+        # up_pad = np.maximum(0,ymin)
+        # # print('up pad: ', up_pad)
+        # down_pad = np.maximum(0, self.length-ymax)
+        # # print('down pad: ', down_pad)
+
+        ###
+        # full_shape_1d = np.pad(shape_1d, ((np.maximum(0, x_min), np.maximum(0, self.width-x_max)),(np.maximum(0,y_min),np.maximum(0, self.length-y_max))),constant_values=0)
+        # full_shape_1d = np.pad(shape_1d, ((left_pad, right_pad),(up_pad,down_pad)),constant_values=0)
+        
+        # print(full_shape_1d.shape)
+        # nonzero_indices = np.argwhere(full_shape_1d == 1)
+        # print(pos,nonzero_indices[0])
+        ###
 
         #the following is needed when disk dictionary is not used
         
@@ -119,10 +148,18 @@ class DeadLeavesGenerator:
         shape_1d = shape_1d[max(0,width_shape//2-pos[0]):min(width_shape,self.width+width_shape//2-pos[0]),max(0,length_shape//2-pos[1]):min(length_shape,self.width+length_shape//2-pos[1])]
 
         shape_mask_1d *= shape_1d
+
         if self.enableJax:
             image.base_mask = image.base_mask.at[x_min:x_max, y_min:y_max].set(image.base_mask[x_min:x_max, y_min:y_max] * jnp.logical_not(shape_mask_1d))
         else:
             image.base_mask[x_min:x_max, y_min:y_max] &= ~shape_mask_1d 
+
+            # base_mask_copy = image.base_mask.copy()
+            # base_mask_copy = base_mask_copy * ~ (full_shape_1d)
+
+            # print('ARE THEY EQUAL: ', np.array_equal(image.base_mask, base_mask_copy))
+            # exit()
+
         return(x_min,x_max,y_min,y_max,shape_mask_1d)
 
     def render_shape(self, shape_mask_1d):
@@ -141,8 +178,6 @@ class DeadLeavesGenerator:
                 color = sampling_grayscale_histogram(self.color_image)
         else:
             sampling_rgb_histogram()
-            exit()
-
         shape_render = color*shape_render
 
         return(shape_mask,shape_render)
@@ -160,7 +195,7 @@ class DeadLeavesGenerator:
         # while jnp.any(image.base_mask == 1):
         
         #(faster operation)
-        for i in range(0,1):
+        for i in range(0,150000):
 
             noOfDisks +=1
             print(f"\rDisk no. {noOfDisks}", end="", flush=True)
@@ -169,18 +204,20 @@ class DeadLeavesGenerator:
 
             #creating a disk mask
             shape_1d, radius = self.get_shape_mask(subkey=subkeys[3] if self.enableJax else None)
-            print(shape_1d.shape)
+            # print('\nradius ',radius)
+            # print(shape_1d.shape)
+            
             #getting the position and updating the base mask
             if self.enableJax:
                 x_min,x_max,y_min,y_max,shape_mask_1d = self.update_base_mask(image=image,shape_1d=shape_1d, pos_x_key=subkeys[1], pos_y_key=subkeys[2])
             else:
                 x_min,x_max,y_min,y_max,shape_mask_1d = self.update_base_mask(image=image,shape_1d=shape_1d)
 
-            print(shape_mask_1d.shape)
 
             shape_mask,shape_render =self.render_shape(shape_mask_1d)
-            print(shape_mask.shape)
-            print(shape_render.shape)
+            # print(shape_mask.shape)
+            # print('shape_mask\n', shape_mask)
+            # print(shape_render.shape)
 
             image.addDisk(radius=radius, topLeft=[x_min, y_min], bottomRight=[x_max, y_max], shape_mask=shape_mask)
 
@@ -190,6 +227,59 @@ class DeadLeavesGenerator:
             else:
                 image.resulting_image[x_min:x_max,y_min:y_max,:]*=np.uint8(1-shape_mask)
                 image.resulting_image[x_min:x_max,y_min:y_max,:]+=np.uint8(shape_render)
+
+           
+            # if self.enableJax:
+            #     pos = [jax.random.randint(key=subkeys[1], shape=(), minval=0, maxval=self.width), jax.random.randint(key=subkeys[2], shape=(), minval=0, maxval=self.width)]
+
+            #     x_min = max(0, pos[0] - self.width//2)
+            #     x_max = min(self.width, pos[0] + self.width//2+1)
+            #     y_min = max(0, pos[1] - self.length//2)
+            #     y_max = min(self.width, pos[1] + self.length//2+1)
+
+            #     full_image = jnp.ones((self.width, self.length, 3), dtype=jnp.uint8)
+            #     full_base_mask = jnp.ones((self.width, self.length), dtype=int)
+
+            #     color = sampling_grayscale_histogram(self.color_image)
+            #     full_shape_mask_1d = jnp.pad(shape_1d, ((jnp.maximum(0, x_min), jnp.maximum(0, self.width-x_max)),(jnp.maximum(0,y_min),jnp.maximum(0, self.length-y_max))))
+
+            #     # full_base_mask = full_base_mask.set(full_base_mask * jnp.logical_not(full_shape_mask_1d))
+            #     full_base_mask =full_base_mask * jnp.logical_not(full_shape_mask_1d)
+                
+            #     full_shape_mask = jnp.float32(jnp.repeat(full_shape_mask_1d[:, :, jnp.newaxis], 3, axis=2))
+
+            #     full_image = full_image.multiply(jnp.uint8(1-full_shape_mask))
+
+            #     full_image = full_image.add(jnp.uint8(full_shape_mask * color))
+
+            #     image.resulting_image = full_image
+            #     image.base_mask = full_base_mask
+            # else:
+            #     pos = [np.random.randint(0, self.width), np.random.randint(0, self.width)]
+
+            #     x_min = pos[0] - self.width//2
+            #     x_max = self.width, pos[0] + self.width//2+1
+            #     y_min = 0, pos[1] - self.length//2
+            #     y_max = self.width, pos[1] + self.length//2+1
+            #     print(x_min, x_max)
+            #     print(y_min, y_max)
+
+            #     color = sampling_grayscale_histogram(self.color_image)
+            #     full_image = np.ones((self.width,self.width,3), dtype = jnp.uint8)
+            #     full_base_mask = np.ones((self.width, self.length), dtype=int)
+
+            #     full_shape_mask_1d = np.pad(shape_1d, ((np.maximum(0, x_min), np.maximum(0, self.width-x_max)),(np.maximum(0,y_min),np.maximum(0, self.length-y_max))),constant_values=0)
+            #     full_base_mask =full_base_mask * np.logical_not(full_shape_mask_1d)
+                
+            #     full_shape_mask = np.float32(np.repeat(full_shape_mask_1d[:, :, np.newaxis], 3, axis=2))
+
+            #     full_image = full_image.multiply(np.uint8(1-full_shape_mask))
+
+            #     full_image = full_image.add(np.uint8(full_shape_mask * color))
+
+            #     image.resulting_image = full_image
+            #     image.base_mask = full_base_mask
+
 
         print()
         
@@ -203,8 +293,7 @@ class DeadLeavesGenerator:
         #TODO: implement this through self defined jax functions to remove np dependency
         #currently switching to np for cv2 implementation
 
-        if self.enableJax:
-            resulting_image = np.array(image.resulting_image)
+        resulting_image = np.array(image.resulting_image)
 
         if blur or ds:
             if blur:
@@ -218,6 +307,8 @@ class DeadLeavesGenerator:
 
         if self.enableJax:
             image.resulting_image = jnp.array(resulting_image)
+        else:
+            image.resulting_image = np.array(resulting_image)
 
 class DeadLeavesImage:
     def __init__(self, width, length, enableJax):
@@ -276,12 +367,3 @@ class Disk:
         self.bottomRight = bottomRight
 
         self.radius = radius
-
-if __name__ == '__main__':
-    generator = DeadLeavesGenerator(rmin=1, rmax=1000, alpha=3, width=500, length=500, grayscale=True, color_path='C:/Users/mahee/Desktop/dead leaves project/DiffDL/source_images/tree.jpg', uniform_sampling=False)
-    # for i in range(10):
-    #     print(generator.get_shape_mask())
-    # generator.batch_subkey_generation()
-    # with open('subkeys.txt', 'w') as file:
-    #     for subkeys in generator.subkey_buffer:
-    #         file.write((' '.join(map(str, subkeys))) + '\n')

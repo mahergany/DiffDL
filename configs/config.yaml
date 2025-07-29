@@ -2,11 +2,11 @@ settings:
   width: 500
   length: 500
   no_of_images: 1
-  source_directory: './source_images/forest'
-  output_directory: './generated_images/forest'
-  category: 'forest'
-  # category: 'beach'
-  postprocess: False
+  source_directory: './source_images/beach'
+  output_directory: './generated_images/beach'
+  # category: 'forest'
+  category: 'beach'
+  postprocess: True
   enableJax: False
 params:
   rmin: 1
