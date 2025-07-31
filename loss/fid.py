@@ -8,7 +8,7 @@ import functools
 import scipy
 import tempfile
 
-def get_fid(source_images_path, generated_images_path, grayscale=True):
+def get_fid_through_path(source_images_path, generated_images_path, grayscale=True):
 
     rng = jax.random.PRNGKey(0)
 
@@ -17,8 +17,8 @@ def get_fid(source_images_path, generated_images_path, grayscale=True):
 
     apply_fn = jax.jit(functools.partial(model.apply, train=False))
 
-    mu1, sigma1 = utils.compute_data_distribution(source_images_path,apply_fn=apply_fn, fn_params=params,isGenerated=False)
-    mu2, sigma2 = utils.compute_data_distribution(generated_images_path,apply_fn=apply_fn, params=params,isGenerated=True)
+    mu1, sigma1 = utils.compute_data_distribution_with_path(source_images_path,apply_fn=apply_fn, fn_params=params,isGenerated=False)
+    mu2, sigma2 = utils.compute_data_distribution_with_path(generated_images_path,apply_fn=apply_fn, params=params,isGenerated=True)
 
     fid = compute_fid(mu1, sigma1, mu2, sigma2)
 
@@ -59,7 +59,4 @@ def compute_fid(mu1, sigma1, mu2, sigma2, eps=1e-6):
 
 
 if __name__ == '__main__':
-   get_fid()
-
-def compute_fid():
-    pass
+   get_fid_through_path()

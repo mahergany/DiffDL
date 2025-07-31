@@ -11,7 +11,7 @@ import tempfile
 import requests
 import matplotlib.pyplot as plt
 
-def compute_data_distribution(images_path, apply_fn, fn_params, isGenerated=True, batch_size=1, grayscale=True):
+def compute_data_distribution_with_path(images_path, apply_fn, fn_params, isGenerated=True, batch_size=1, grayscale=True):
     ''' returns mean and sdev of the assumed normal distribution '''
     images = []
 

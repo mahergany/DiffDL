@@ -15,7 +15,11 @@ from datetime import datetime
 from torch.optim.lr_scheduler import LinearLR 
 import gc
 import json
-from pytorch_fid.fid_score import calculate_frechet_distance, calculate_fid_given_paths
+import scipy
+from scipy import linalg
+from inception import InceptionV3
+from torch.nn.functional import adaptive_avg_pool2d
+from fid.fastfid import fastfid 
 
 def generate_2D_gaussian_splatting(kernel_size, scale, rotation, coords, colours, image_size=(256, 256, 3), device="cpu"):
     batch_size = colours.shape[0]
@@ -104,12 +108,9 @@ def give_required_data(input_coords, image_size, image_array, device):
   return colour_values_tensor, coords
 
 def train(directory):
-
-    # Read the config.yml file
     with open('C:/Users/mahee/Desktop/dead leaves project/DiffDL/configs/2dgs_config.yml', 'r') as config_file:
         config = yaml.safe_load(config_file)
 
-    # Extract values from the loaded config
     KERNEL_SIZE = config["KERNEL_SIZE"]
     image_size = tuple(config["image_size"])
     primary_samples = config["primary_samples"]
@@ -117,7 +118,7 @@ def train(directory):
     num_epochs = config["num_epochs"]
     densification_interval = config["densification_interval"]
     learning_rate = config["learning_rate"]
-    image_file_name = config["image_file_name"]
+    images_folder = config['images_folder']
     display_interval = config["display_interval"]
     grad_threshold = config["gradient_threshold"]
     gauss_threshold = config["gaussian_threshold"]
@@ -125,184 +126,223 @@ def train(directory):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     num_samples = primary_samples + backup_samples
+    image_files = sorted(os.listdir(images_folder))
+    num_images = len(image_files)
 
-    PADDING = KERNEL_SIZE // 2
-    image_path = image_file_name
-    original_image = Image.open(image_path)
-    original_image = original_image.resize((image_size[0],image_size[0]))
-    original_image = original_image.convert('RGB')
-    original_array = np.array(original_image)
-    original_array = original_array / 255.0
-    width, height, _ = original_array.shape
+    all_source_tensors = []
+    all_W = []
+    all_masks = []
+    all_optimizers = []
+    all_schedulers = []
 
-    image_array = original_array
-    target_tensor = torch.tensor(image_array, dtype=torch.float32, device=device)
-    coords = np.random.randint(0, [width, height], size=(num_samples, 2))
-    random_pixel_means = torch.tensor(coords, device=device)
-    pixels = [image_array[coord[0], coord[1]] for coord in coords]
-    pixels_np = np.array(pixels)
-    random_pixels =  torch.tensor(pixels_np, device=device)
+    for image_file in image_files:
+        img = Image.open(os.path.join(images_folder, image_file)).resize((image_size[0],image_size[0])).convert('RGB')
+        img_tensor = torch.tensor(np.array(img) / 255.0, dtype=torch.float32, device=device)
+        width, height, _ = img_tensor.shape
+        all_source_tensors.append(img_tensor)
 
-    colour_values, pixel_coords = give_required_data(coords, image_size, image_array, device)
+        coords = np.random.randint(0, [width, height], size=(num_samples, 2))
+        colour_values, pixel_coords = give_required_data(coords, image_size, np.array(img), device)
+        colour_values = torch.logit(colour_values)
+        pixel_coords = torch.atanh(pixel_coords)
 
-    colour_values = torch.logit(colour_values)
-    pixel_coords = torch.atanh(pixel_coords)
+        scale_values = torch.logit(torch.rand(num_samples, 2, device=device))
+        rotation_values = torch.atanh(2 * torch.rand(num_samples, 1, device=device) - 1)
+        alpha_values = torch.logit(torch.rand(num_samples, 1, device=device))
 
-    scale_values = torch.logit(torch.rand(num_samples, 2, device=device))
-    rotation_values = torch.atanh(2 * torch.rand(num_samples, 1, device=device) - 1)
-    alpha_values = torch.logit(torch.rand(num_samples, 1, device=device))
-    W_values = torch.cat([scale_values, rotation_values, alpha_values, colour_values, pixel_coords], dim=1)
+        W_values = torch.cat([scale_values, rotation_values, alpha_values, colour_values, pixel_coords], dim=1)
+        persistent_mask = torch.cat([torch.ones(primary_samples, dtype=bool), torch.zeros(backup_samples, dtype=bool)], dim=0)
 
-    starting_size = primary_samples
-    left_over_size = backup_samples
-    persistent_mask = torch.cat([torch.ones(starting_size, dtype=bool),torch.zeros(left_over_size, dtype=bool)], dim=0)
-    current_marker = starting_size
+        W = nn.Parameter(W_values)
+        optimizer = Adam([W], lr=learning_rate)
+        scheduler = LinearLR(optimizer, start_factor=1.0, end_factor=1e-8, total_iters=num_epochs)
 
-    W = nn.Parameter(W_values)
-    optimizer = Adam([W], lr=learning_rate)
-    scheduler = LinearLR(optimizer, start_factor=1.0, end_factor=1e-8, total_iters=num_epochs)
+        all_W.append(W)
+        all_masks.append(persistent_mask)
+        all_optimizers.append(optimizer)
+        all_schedulers.append(scheduler)
+
     loss_history = []
 
-    scales = []
-
-    os.makedirs(os.path.join(directory, 'generated'),exist_ok=True)
-
     for epoch in range(num_epochs):
+        g_tensor_list = []
+        current_scales = []
 
-        #find indices to remove and update the persistent mask
-        if epoch % (densification_interval + 1) == 0 and epoch > 0:
-            indices_to_remove = (torch.sigmoid(W[:, 3]) < 0.01).nonzero(as_tuple=True)[0]
+        for idx in range(num_images):
+            W = all_W[idx]
+            persistent_mask = all_masks[idx]
+            optimizer = all_optimizers[idx]
+            scheduler = all_schedulers[idx]
+            target_tensor = all_source_tensors[idx]
 
-            if len(indices_to_remove) > 0:
-                print(f"number of pruned points: {len(indices_to_remove)}")
+            # Densification / Pruning
+            if epoch % (densification_interval + 1) == 0 and epoch > 0:
+                indices_to_remove = (torch.sigmoid(W[:, 3]) < 0.01).nonzero(as_tuple=True)[0]
+                persistent_mask[indices_to_remove] = False
+                W.data[~persistent_mask] = 0.0
 
-            persistent_mask[indices_to_remove] = False
+            gc.collect()
+            torch.cuda.empty_cache()
 
-            # Zero-out parameters and their gradients at every epoch using the persistent mask
-            W.data[~persistent_mask] = 0.0
+            output = W[persistent_mask]
+            scale = torch.sigmoid(output[:, 0:2])
+            rotation = np.pi / 2 * torch.tanh(output[:, 2])
+            alpha = torch.sigmoid(output[:, 3])
+            colours = torch.sigmoid(output[:, 4:7])
+            pixel_coords = torch.tanh(output[:, 7:9])
+            colours_with_alpha = colours * alpha.view(-1, 1)
 
+            g_tensor = generate_2D_gaussian_splatting(
+                KERNEL_SIZE, scale, rotation, pixel_coords, colours_with_alpha, image_size, device=device
+            )  # [H, W, 3]
+            g_tensor_list.append(g_tensor.permute(2, 0, 1))  # to [C, H, W]
 
-        gc.collect()
-        torch.cuda.empty_cache()
+            if epoch + 1 == num_epochs:
+                current_scales.append(scale)
 
-        output = W[persistent_mask]
+        # === Compute loss over full batch ===
+        g_tensor_batch = torch.stack(g_tensor_list)           # [N, C, H, W]
+        target_batch = torch.stack([t.permute(2, 0, 1) for t in all_source_tensors])  # [N, C, H, W]
+        loss = fastfid(g_tensor_batch, target_batch, gradient_checkpointing=True)
 
-        batch_size = output.shape[0]
-
-        scale = torch.sigmoid(output[:, 0:2])
-        
-        if epoch + 1 == num_epochs:
-            scales.append(scale)
-
-        rotation = np.pi / 2 * torch.tanh(output[:, 2])
-        alpha = torch.sigmoid(output[:, 3])
-        colours = torch.sigmoid(output[:, 4:7])
-        pixel_coords = torch.tanh(output[:, 7:9])
-
-        colours_with_alpha  = colours * alpha.view(batch_size, 1)
-        g_tensor_batch = generate_2D_gaussian_splatting(KERNEL_SIZE, scale, rotation, pixel_coords, colours_with_alpha, image_size, device=device)
-        
-        generated_array = g_tensor_batch.cpu().detach().numpy()
-        img = Image.fromarray((generated_array * 255).astype(np.uint8))
-        file_path = f"{directory}/generated/generated.jpg"
-        img.save(file_path)
-
-        loss = calculate_fid_given_paths([os.path.join(directory, 'generated'), './forest'], 1, device, 2048)
-
-        optimizer.zero_grad()
-
+        # === Backprop per-image ===
         loss.backward()
 
-        # Apply zeroing out of gradients at every epoch
-        if persistent_mask is not None:
-            W.grad.data[~persistent_mask] = 0.0
+        for idx in range(num_images):
+            W = all_W[idx]
+            mask = all_masks[idx]
+            optimizer = all_optimizers[idx]
+            scheduler = all_schedulers[idx]
 
-        if epoch % densification_interval == 0 and epoch > 0:
-
-            # Calculate the norm of gradients
-            gradient_norms = torch.norm(W.grad[persistent_mask][:, 7:9], dim=1, p=2)
-            gaussian_norms = torch.norm(torch.sigmoid(W.data[persistent_mask][:, 0:2]), dim=1, p=2)
-
-            sorted_grads, sorted_grads_indices = torch.sort(gradient_norms, descending=True)
-            sorted_gauss, sorted_gauss_indices = torch.sort(gaussian_norms, descending=True)
-
-            large_gradient_mask = (sorted_grads > grad_threshold)
-            large_gradient_indices = sorted_grads_indices[large_gradient_mask]
-
-            large_gauss_mask = (sorted_gauss > gauss_threshold)
-            large_gauss_indices = sorted_gauss_indices[large_gauss_mask]
-
-            common_indices_mask = torch.isin(large_gradient_indices, large_gauss_indices)
-            common_indices = large_gradient_indices[common_indices_mask]
-            distinct_indices = large_gradient_indices[~common_indices_mask]
-
-            # Split points with large coordinate gradient and large gaussian values and descale their gaussian
-            if len(common_indices) > 0:
-                print(f"Number of splitted points: {len(common_indices)}")
-                start_index = current_marker + 1
-                end_index = current_marker + 1 + len(common_indices)
-                persistent_mask[start_index: end_index] = True
-                W.data[start_index:end_index, :] = W.data[common_indices, :]
-                scale_reduction_factor = 1.6
-                W.data[start_index:end_index, 0:2] /= scale_reduction_factor
-                W.data[common_indices, 0:2] /= scale_reduction_factor
-                current_marker = current_marker + len(common_indices)
-
-            # Clone it points with large coordinate gradient and small gaussian values
-            if len(distinct_indices) > 0:
-
-                print(f"Number of cloned points: {len(distinct_indices)}")
-                start_index = current_marker + 1
-                end_index = current_marker + 1 + len(distinct_indices)
-                persistent_mask[start_index: end_index] = True
-                W.data[start_index:end_index, :] = W.data[distinct_indices, :]
-
-                # Calculate the movement direction based on the positional gradient
-                positional_gradients = W.grad[distinct_indices, 7:9]
-                gradient_magnitudes = torch.norm(positional_gradients, dim=1, keepdim=True)
-                normalized_gradients = positional_gradients / (gradient_magnitudes + 1e-8)  # Avoid division by zero
-
-                # Define a step size for the movement
-                step_size = 0.01
-
-                # Move the cloned Gaussians
-                W.data[start_index:end_index, 7:9] += step_size * normalized_gradients
-
-                current_marker = current_marker + len(distinct_indices)
-
-        optimizer.step()
-        scheduler.step()
+            if mask is not None:
+                W.grad.data[~mask] = 0.0
+            optimizer.step()
+            scheduler.step()
 
         loss_history.append(loss.item())
 
         if epoch % display_interval == 0:
-            num_subplots = 3 if display_loss else 2
-            fig_size_width = 18 if display_loss else 12
+            print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
 
-            generated_array = g_tensor_batch.cpu().detach().numpy()
+        # === Save per-image JSONs and preview ===
+        if epoch + 1 == num_epochs:
+            os.makedirs(directory, exist_ok=True)
+            for idx, scale in enumerate(current_scales):
+                W_final = all_W[idx][all_masks[idx]]
+                alpha = torch.sigmoid(W_final[:, 3])
 
-            img = Image.fromarray((generated_array * 255).astype(np.uint8))
+                avg_scale = scale.mean(dim=0).detach().cpu().numpy()
+                avg_alpha = alpha.mean().item()
 
-            # Create filename
-            filename = f"{epoch}.jpg"
+                image_name = os.path.splitext(image_files[idx])[0]
+                output_json = {
+                    "x_scale": float(avg_scale[0]),
+                    "y_scale": float(avg_scale[1]),
+                    "alpha": float(avg_alpha),
+                }
+                json_path = os.path.join(directory, f"{image_name}_scales.json")
+                with open(json_path, "w") as f:
+                    json.dump(output_json, f, indent=2)
 
-            # Construct the full file path
-            file_path = os.path.join(directory, filename)
+                out_img = g_tensor_list[idx].permute(1, 2, 0).cpu().numpy()
+                out_img = (out_img * 255).astype(np.uint8)
+                img_pil = Image.fromarray(out_img)
+                img_pil.save(os.path.join(directory, f"{image_name}_final.jpg"))
 
-            # Save the image
-            img.save(file_path)
+def compute_statistics(images, model, batch_size=32, dims=2048, device='cpu'):
 
-            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss.item()}, on {len(output)} points")
+    model.eval()
+    images = images.to(device)
+    n_images = images.shape[0]
 
-    final_scale_tensor = scales[0].detach().cpu().numpy()
-    final_alpha_tensor = alpha.detach().cpu().numpy()
-    gaussian_scales = [ {"id": int(i), "scale_x": float(s[0]), "scale_y": float(s[1]), "alpha": float(a)} for i, (s, a) in enumerate(zip(final_scale_tensor, final_alpha_tensor)) ]
-    output_path = os.path.join(directory, "final_gaussian_scales.json")
-    with open(output_path, "w") as f:
-        json.dump(gaussian_scales, f, indent=4)
+    pred_arr = np.empty((n_images, dims))
 
-    return file_path
+    with torch.no_grad():
+        for i in range(0, n_images, batch_size):
+            batch = images[i:i+batch_size].to(device)
 
+            if batch.shape[1] == 1:
+                batch = batch.repeat(1, 3, 1, 1)
+
+            pred = model(batch)[0]
+
+            if pred.size(2) != 1 or pred.size(3) != 1:
+                pred = adaptive_avg_pool2d(pred, output_size=(1, 1))
+
+            pred = pred.squeeze(3).squeeze(2).cpu().numpy()
+            pred_arr[i:i+batch.shape[0]] = pred
+
+    mu = np.mean(pred_arr, axis=0)
+    sigma = np.cov(pred_arr, rowvar=False)
+    return mu, sigma
+
+def calculate_fid(mu1, sigma1, mu2, sigma2, eps=1e-6):
+
+    mu1 = np.atleast_1d(mu1)
+    mu2 = np.atleast_1d(mu2)
+
+    sigma1 = np.atleast_2d(sigma1)
+    sigma2 = np.atleast_2d(sigma2)
+
+    assert (
+        mu1.shape == mu2.shape
+    ), "Training and test mean vectors have different lengths"
+    assert (
+        sigma1.shape == sigma2.shape
+    ), "Training and test covariances have different dimensions"
+
+    diff = mu1 - mu2
+
+    # Product might be almost singular
+    covmean, _ = linalg.sqrtm(sigma1.dot(sigma2), disp=False)
+    if not np.isfinite(covmean).all():
+        msg = (
+            "fid calculation produces singular product; "
+            "adding %s to diagonal of cov estimates"
+        ) % eps
+        print(msg)
+        offset = np.eye(sigma1.shape[0]) * eps
+        covmean = linalg.sqrtm((sigma1 + offset).dot(sigma2 + offset))
+
+    # Numerical error might give slight imaginary component
+    if np.iscomplexobj(covmean):
+        if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
+            m = np.max(np.abs(covmean.imag))
+            raise ValueError("Imaginary component {}".format(m))
+        covmean = covmean.real
+
+    tr_covmean = np.trace(covmean)
+
+    return diff.dot(diff) + np.trace(sigma1) + np.trace(sigma2) - 2 * tr_covmean
+
+def get_fid(source_images,generated_images, device, grayscale=True):
+
+    source_images = preprocess_for_fid(source_images)
+    generated_images = preprocess_for_fid(generated_images)
+
+    dims=2048
+
+    block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
+
+    model = InceptionV3([block_idx]).to(device)
+
+    mu1, sigma1 = compute_statistics(source_images, model,device=device)
+    mu2, sigma2 = compute_statistics(generated_images, model, device=device)
+
+    fid = calculate_fid(mu1, sigma1, mu2, sigma2)
+
+    return fid
+
+def preprocess_for_fid(tensor):
+    if tensor.ndim == 3:  # single image: [H, W, C] or [C, H, W]
+        if tensor.shape[0] <= 3:  # [C, H, W] likely
+            tensor = tensor.unsqueeze(0)  # [1, C, H, W]
+        else:
+            tensor = tensor.permute(2, 0, 1).unsqueeze(0)  # [1, C, H, W]
+    elif tensor.ndim == 4 and tensor.shape[1] != 3:
+        # possibly [N, H, W, C], convert to [N, C, H, W]
+        tensor = tensor.permute(0, 3, 1, 2)
+    return tensor
 
 if __name__=='__main__':
 
