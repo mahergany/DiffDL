@@ -1,0 +1,14 @@
+Epoch: 0, Loss: 0.2113288938999176
+Traceback (most recent call last):
+  File "C:\Users\mahee\Desktop\dead leaves project\DiffDL\dead_leaves_ellipses.py", line 220, in <module>
+    train()
+  File "C:\Users\mahee\Desktop\dead leaves project\DiffDL\dead_leaves_ellipses.py", line 193, in train
+    loss.backward()
+  File "C:\Users\mahee\AppData\Roaming\Python\Python312\site-packages\torch\_tensor.py", line 626, in backward
+    torch.autograd.backward(
+  File "C:\Users\mahee\AppData\Roaming\Python\Python312\site-packages\torch\autograd\__init__.py", line 347, in backward
+    _engine_run_backward(
+  File "C:\Users\mahee\AppData\Roaming\Python\Python312\site-packages\torch\autograd\graph.py", line 823, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 954.00 MiB. GPU 0 has a total capacity of 6.00 GiB of which 0 bytes is free. Of the allocated memory 5.23 GiB is allocated by PyTorch, and 17.50 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)

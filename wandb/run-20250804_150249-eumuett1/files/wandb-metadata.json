@@ -1,0 +1,40 @@
+{
+  "os": "Windows-11-10.0.26100-SP0",
+  "python": "CPython 3.12.1",
+  "startedAt": "2025-08-04T13:02:49.630770Z",
+  "program": "C:\\Users\\mahee\\Desktop\\dead leaves project\\DiffDL\\dead_leaves_ellipses.py",
+  "codePath": "dead_leaves_ellipses.py",
+  "codePathLocal": "dead_leaves_ellipses.py",
+  "git": {
+    "remote": "https://github.com/mahergany/DiffDL.git",
+    "commit": "792666b1ee4f577be17b052e0590921bdda3afd7"
+  },
+  "email": "mahmed.bscs22seecs@seecs.edu.pk",
+  "root": "C:\\Users\\mahee\\Desktop\\dead leaves project\\DiffDL",
+  "host": "maheen_ahmed",
+  "executable": "C:\\Users\\mahee\\anaconda3\\envs\\diffdl2\\python.exe",
+  "cpu_count": 10,
+  "cpu_count_logical": 16,
+  "gpu": "NVIDIA GeForce RTX 4050 Laptop GPU",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "510419865600",
+      "used": "507293163520"
+    }
+  },
+  "memory": {
+    "total": "16793001984"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 4050 Laptop GPU",
+      "memoryTotal": "6439305216",
+      "cudaCores": 2560,
+      "architecture": "Ada",
+      "uuid": "GPU-92c363ca-3ff4-402f-233f-4cd1f08034ed"
+    }
+  ],
+  "cudaVersion": "12.5",
+  "writerId": "151r4r45k6innsc344jvdlwfhfpmtc5n"
+}

@@ -1,0 +1,22 @@
+2025-08-04 14:59:01,205 INFO    MainThread:2204 [wandb_setup.py:_flush():80] Current SDK version is 0.21.0
+2025-08-04 14:59:01,206 INFO    MainThread:2204 [wandb_setup.py:_flush():80] Configure stats pid to 2204
+2025-08-04 14:59:01,206 INFO    MainThread:2204 [wandb_setup.py:_flush():80] Loading settings from C:\Users\mahee\.config\wandb\settings
+2025-08-04 14:59:01,206 INFO    MainThread:2204 [wandb_setup.py:_flush():80] Loading settings from C:\Users\mahee\Desktop\dead leaves project\DiffDL\wandb\settings
+2025-08-04 14:59:01,206 INFO    MainThread:2204 [wandb_setup.py:_flush():80] Loading settings from environment variables
+2025-08-04 14:59:01,206 INFO    MainThread:2204 [wandb_init.py:setup_run_log_directory():703] Logging user logs to C:\Users\mahee\Desktop\dead leaves project\DiffDL\wandb\run-20250804_145901-e8qq1sk4\logs\debug.log
+2025-08-04 14:59:01,207 INFO    MainThread:2204 [wandb_init.py:setup_run_log_directory():704] Logging internal logs to C:\Users\mahee\Desktop\dead leaves project\DiffDL\wandb\run-20250804_145901-e8qq1sk4\logs\debug-internal.log
+2025-08-04 14:59:01,207 INFO    MainThread:2204 [wandb_init.py:init():830] calling init triggers
+2025-08-04 14:59:01,207 INFO    MainThread:2204 [wandb_init.py:init():835] wandb.init called with sweep_config: {}
+config: {'lr': 0.1, 'num_gaussians': 500, 'batch_size': 1, 'epochs': 100, '_wandb': {}}
+2025-08-04 14:59:01,207 INFO    MainThread:2204 [wandb_init.py:init():871] starting backend
+2025-08-04 14:59:01,436 INFO    MainThread:2204 [wandb_init.py:init():874] sending inform_init request
+2025-08-04 14:59:01,522 INFO    MainThread:2204 [wandb_init.py:init():882] backend started and connected
+2025-08-04 14:59:01,523 INFO    MainThread:2204 [wandb_init.py:init():953] updated telemetry
+2025-08-04 14:59:01,598 INFO    MainThread:2204 [wandb_init.py:init():977] communicating run to backend with 90.0 second timeout
+2025-08-04 14:59:04,080 INFO    MainThread:2204 [wandb_init.py:init():1029] starting run threads in backend
+2025-08-04 14:59:04,464 INFO    MainThread:2204 [wandb_run.py:_console_start():2458] atexit reg
+2025-08-04 14:59:04,464 INFO    MainThread:2204 [wandb_run.py:_redirect():2306] redirect: wrap_raw
+2025-08-04 14:59:04,464 INFO    MainThread:2204 [wandb_run.py:_redirect():2375] Wrapping output streams.
+2025-08-04 14:59:04,464 INFO    MainThread:2204 [wandb_run.py:_redirect():2398] Redirects installed.
+2025-08-04 14:59:04,466 INFO    MainThread:2204 [wandb_init.py:init():1075] run started, returning control to user process
+2025-08-04 14:59:07,837 INFO    MsgRouterThr:2204 [mailbox.py:close():129] [no run ID] Closing mailbox, abandoning 1 handles.

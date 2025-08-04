@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "C:\Users\mahee\Desktop\dead leaves project\DiffDL\dead_leaves_ellipses.py", line 220, in <module>
+    train()
+  File "C:\Users\mahee\Desktop\dead leaves project\DiffDL\dead_leaves_ellipses.py", line 178, in train
+    g_tensor_batch = generate_dead_leaves_images(rmin, rmax, alpha, color_histogram=hist, device=device)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: generate_dead_leaves_images() missing 1 required positional argument: 'num_gaussians'

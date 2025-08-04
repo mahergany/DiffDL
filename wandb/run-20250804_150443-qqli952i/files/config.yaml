@@ -1,0 +1,63 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            6gym4u17u0yede4844xdffkf5xpq88y1:
+                codePath: dead_leaves_ellipses.py
+                codePathLocal: dead_leaves_ellipses.py
+                cpu_count: 10
+                cpu_count_logical: 16
+                cudaVersion: "12.5"
+                disk:
+                    /:
+                        total: "510419865600"
+                        used: "507780345856"
+                email: mahmed.bscs22seecs@seecs.edu.pk
+                executable: C:\Users\mahee\anaconda3\envs\diffdl2\python.exe
+                git:
+                    commit: 792666b1ee4f577be17b052e0590921bdda3afd7
+                    remote: https://github.com/mahergany/DiffDL.git
+                gpu: NVIDIA GeForce RTX 4050 Laptop GPU
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 2560
+                      memoryTotal: "6439305216"
+                      name: NVIDIA GeForce RTX 4050 Laptop GPU
+                      uuid: GPU-92c363ca-3ff4-402f-233f-4cd1f08034ed
+                host: maheen_ahmed
+                memory:
+                    total: "16793001984"
+                os: Windows-11-10.0.26100-SP0
+                program: C:\Users\mahee\Desktop\dead leaves project\DiffDL\dead_leaves_ellipses.py
+                python: CPython 3.12.1
+                root: C:\Users\mahee\Desktop\dead leaves project\DiffDL
+                startedAt: "2025-08-04T13:04:43.880154Z"
+                writerId: 6gym4u17u0yede4844xdffkf5xpq88y1
+        m: []
+        python_version: 3.12.1
+        t:
+            "1":
+                - 1
+                - 12
+            "2":
+                - 1
+                - 12
+            "3":
+                - 13
+                - 16
+            "4": 3.12.1
+            "5": 0.21.0
+            "8":
+                - 2
+                - 3
+            "12": 0.21.0
+            "13": windows-amd64
+batch_size:
+    value: 1
+epochs:
+    value: 100
+lr:
+    value: 0.1
+num_gaussians:
+    value: 200
