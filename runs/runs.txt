@@ -1,0 +1,9 @@
+beach:
+    4&5 - 500 gaussians, ffl loss, lr = 0.1
+    6 - 1000 gaussians
+    7 - 2000 gaussians
+    8 - 5000 gaussians (no change in loss !!)
+    9 - 100 gaussians
+
+forest:
+     - 
