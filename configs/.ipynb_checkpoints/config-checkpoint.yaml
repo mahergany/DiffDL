@@ -1,0 +1,28 @@
+settings:
+  width: 500
+  length: 500
+  no_of_images: 1
+  source_directory: './source_images/forest'
+  output_directory: './generated_images/forest'
+  category: 'forest'
+  # category: 'beach'
+  postprocess: False
+  enableJax: True
+
+params:
+  rmin: 1
+  rmax: 1000
+  alpha: 3.0
+
+color:
+
+  #temporarily keeping the color scale grayscale for simplicity
+  grayscale: True
+
+  uniform_sampling: False
+
+training:
+  real_images_path: ''
+  iterations: 0
+  
+
