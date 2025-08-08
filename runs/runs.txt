@@ -4,6 +4,16 @@ beach:
     7 - 2000 gaussians
     8 - 5000 gaussians (no change in loss !!)
     9 - 100 gaussians
+    fid 12 onwards
+    14 -
+
+    20 - kernel size 201, opacity variable
+    21 - kernel size 201, opacity 1, 50 gaussians
+    22 - kernel size 501, opacity 1, 50 gaussians
+    23 - kernel size 51
+    24 - kernel size 51, kernel settings tweaked (no visible differences)
+    25 - kernel size 201, kernel settings tweaked (no visible differences)
+    26 - num_gaussians = 10000 and opacity variable - no results
 
 forest:
      - 

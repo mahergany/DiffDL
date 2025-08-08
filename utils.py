@@ -96,6 +96,52 @@ def sampling_distribution_rgb_histogram(source_images, visualize=False):
     
     return (r_val, g_val, b_val)
 
+
+def sampling_rgb_histogram(source_image, visualize=False):
+
+    b, g, r = cv2.split(img)
+    
+    hist_r = cv2.calcHist([r], [0], None, [256], [0, 256]).flatten()
+    hist_g = cv2.calcHist([g], [0], None, [256], [0, 256]).flatten()
+    hist_b = cv2.calcHist([b], [0], None, [256], [0, 256]).flatten()
+    
+    norm_r = hist_r / hist_r.sum()
+    norm_g = hist_g / hist_g.sum()
+    norm_b = hist_b / hist_b.sum()
+    
+    r_val = np.random.choice(256, p=norm_r)
+    g_val = np.random.choice(256, p=norm_g)
+    b_val = np.random.choice(256, p=norm_b)
+    
+    if visualize:
+        plt.figure(figsize=(15, 5))
+        
+        plt.subplot(1, 3, 1)
+        plt.bar(range(256), hist_r, color='red')
+        plt.title('Red Channel Histogram')
+        
+        plt.subplot(1, 3, 2)
+        plt.bar(range(256), hist_g, color='green')
+        plt.title('Green Channel Histogram')
+        
+        plt.subplot(1, 3, 3)
+        plt.bar(range(256), hist_b, color='blue')
+        plt.title('Blue Channel Histogram')
+        
+        plt.tight_layout()
+        
+        plt.figure()
+        color = np.zeros((100, 100, 3), dtype=np.uint8)
+        color[:, :, 0] = b_val
+        color[:, :, 1] = g_val
+        color[:, :, 2] = r_val
+        plt.imshow(color)
+        plt.title(f'Sampled Color (R={r_val}, G={g_val}, B={b_val})')
+        plt.axis('off')
+        plt.show()
+    
+    return (r_val, g_val, b_val)
+
 def get_distribution_rgb_histogram(source_images, visualize=False):
     hist_r = np.zeros(256)
     hist_g = np.zeros(256)
@@ -144,8 +190,14 @@ def sample_rgb_histogram(hist_r, hist_g, hist_b, num_gaussians=1, device='cpu'):
     colours = torch.tensor(colours_np, dtype=torch.float32, device=device)
     return colours
 
-def sampling_rgb_histogram():
-    pass
+def get_rgb_histogram(source_image, visualize=False):
+    r,g,b = cv2.split(source_image)
+    
+    hist_r = cv2.calcHist([r], [0], None, [256], [0, 256]).flatten()
+    hist_g = cv2.calcHist([g], [0], None, [256], [0, 256]).flatten()
+    hist_b = cv2.calcHist([b], [0], None, [256], [0, 256]).flatten()
+
+    return (hist_r, hist_g, hist_b)
 
 def sampling_uniform_distribution():
     return np.random.uniform(0,255)
@@ -192,12 +244,18 @@ def get_radius(rmin, rmax, alpha, k1):
 
 if __name__ == '__main__':
 
-    path = 'C:/Users/mahee/Desktop/dead leaves project/DiffDL/source_images/forest'
+    path = './source_images/beach'
     source_images = []
+    
     for img_name in os.listdir(path):
+        if img_name.startswith('.'):
+            continue
         img_path = os.path.join(path, img_name)
         img = cv2.imread(img_path)
+        if img is None:
+            print(f"Warning: Could not read image {img_path}")
+            continue
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         source_images.append(img)
     
-    sampling_distribution_rgb_histogram(source_images, visualize=True)
+    print(sampling_distribution_rgb_histogram(source_images, visualize=True))
