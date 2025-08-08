@@ -192,12 +192,18 @@ def get_radius(rmin, rmax, alpha, k1):
 
 if __name__ == '__main__':
 
-    path = 'C:/Users/mahee/Desktop/dead leaves project/DiffDL/source_images/forest'
+    path = './source_images/beach'
     source_images = []
+    
     for img_name in os.listdir(path):
+        if img_name.startswith('.'):
+            continue
         img_path = os.path.join(path, img_name)
         img = cv2.imread(img_path)
+        if img is None:
+            print(f"Warning: Could not read image {img_path}")
+            continue
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         source_images.append(img)
     
-    sampling_distribution_rgb_histogram(source_images, visualize=True)
+    print(sampling_distribution_rgb_histogram(source_images, visualize=True))
