@@ -14,6 +14,8 @@ beach:
     24 - kernel size 51, kernel settings tweaked (no visible differences)
     25 - kernel size 201, kernel settings tweaked (no visible differences)
     26 - num_gaussians = 10000 and opacity variable - no results
+    27 - setting num_gaussians as an optimizable parameter
+    
 
 forest:
      - 
