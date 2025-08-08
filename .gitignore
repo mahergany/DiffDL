@@ -1,7 +1,5 @@
 runai.sh
 __pycache__/
-generated_images/
-source_images/
 npy/
 pseudocode.txt
 wandb/
