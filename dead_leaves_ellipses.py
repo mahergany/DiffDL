@@ -142,14 +142,13 @@ def train():
     wandb_log = True
     loss_type = 'ffl'
     save_freq= 10
-    mapping = 'M2M'
 
-    kernel_size=201
+    kernel_size=1001
     batch_size=1000
 
     num_epochs = 200
-    learning_rate = 0.01
-    num_gaussians = 10000
+    learning_rate = 0.1
+    num_gaussians = 500
 
     run_no = get_run_no(output_directory)
     run_dir = os.path.join(output_directory, str(run_no))
@@ -211,6 +210,7 @@ def train():
     RMAX = nn.Parameter(torch.tensor(rmax, device=device,requires_grad=True),requires_grad=True)
     ALPHA = nn.Parameter(torch.tensor(alpha, device=device,requires_grad=True),requires_grad=True)
     OPACITY = nn.Parameter(torch.tensor(opacity, device=device,requires_grad=True),requires_grad=True)
+    NUM_GAUSSIANS = nn.Parameter(torch.tensor(num_gaussians, device=device, requires_grad=True),requires_grad=True)
 
     optimizer = Adam([RMIN, RMAX, ALPHA, OPACITY], lr=learning_rate)
     # optimizer = Adam([RMIN, RMAX, ALPHA], lr=learning_rate)
