@@ -14,8 +14,21 @@ beach:
     24 - kernel size 51, kernel settings tweaked (no visible differences)
     25 - kernel size 201, kernel settings tweaked (no visible differences)
     26 - num_gaussians = 10000 and opacity variable - no results
-    27 - setting num_gaussians as an optimizable parameter
+
+    27 - 500 gaussians, beach_01 with variable opacity --!
+    28 - 500 gaussians, beach_14 with variable opacity --!
+    29 - " but with beach_01 and rmax init = 100
+    30 - " but with rmax init = 50
+    31 - " but with rmax init = 20
+
+    32 - ", rmax init = 100, opacity sampled from a normal distribution 
+    33 - gradually increasing number of gaussians, opacity variable
+    33 - ", clipping rmin at 0.8
+
+    ? - setting num_gaussians as an optimizable parameter
     
 
 forest:
-     - 
+    5 - 500 gaussians, forest_03 with variable opacity --!
+    6 - 500 gaussians, forest_05 with variable opacity --!
+    7 - 

@@ -22,6 +22,7 @@ from torch.utils.checkpoint import checkpoint
 
 
 def generate_gaussian_batch_checkpointed(coords, colours, scale_all, rotation_all, opacity, xy_base, padding, device, start_idx, end_idx):
+# def generate_gaussian_batch_checkpointed(coords, colours, scale_all, rotation_all, xy_base, padding, device, start_idx, end_idx):
     #checkpointed function for single batch of gaussians
 
     # print('27 opacity requires grad: ', opacity.requires_grad)
@@ -67,6 +68,7 @@ def generate_gaussian_batch_checkpointed(coords, colours, scale_all, rotation_al
     grid = F.affine_grid(theta, size=(b, c, h, w), align_corners=False)
     kernel_rgb_padded_translated = F.grid_sample(kernel_rgb_padded, grid, mode='bilinear',padding_mode='zeros',align_corners=False)
 
+    # opacity = torch.normal(mean=0.5, std=0.1, size=(current_batch,), device=device)
     # Apply colors and sum the layers
     rgb_values_reshaped = opacity * colours_batch.unsqueeze(-1).unsqueeze(-1)
     final_image_layers = rgb_values_reshaped * kernel_rgb_padded_translated
@@ -75,6 +77,7 @@ def generate_gaussian_batch_checkpointed(coords, colours, scale_all, rotation_al
     return partial_image
 
 def generate_dead_leaves_images(rmin, rmax, alpha, opacity, color_histogram, num_gaussians,gaussian_batch_size=2000, kernel_size=101, device='cpu', image_size=(500,500,3)):
+# def generate_dead_leaves_images(rmin, rmax, alpha,color_histogram, num_gaussians,gaussian_batch_size=2000, kernel_size=101, device='cpu', image_size=(500,500,3)):
 
     # print('79 opacity requires grad: ', opacity.requires_grad)
     
@@ -114,6 +117,7 @@ def generate_dead_leaves_images(rmin, rmax, alpha, opacity, color_histogram, num
         partial_image = checkpoint(
             generate_gaussian_batch_checkpointed,
             coords_all, colours_all, scale_all, rotation_all, opacity,
+            # coords_all, colours_all, scale_all, rotation_all,
             xy_base, padding, device, start, end,
             use_reentrant=False  # Use the newer, more efficient checkpointing
         )
@@ -129,10 +133,11 @@ def train():
 
     #configs
     category = 'beach'
-    source_images_path = f'./source_images/{category}'
+    # source_images_path = f'./source_images/{category}'
+    source_images_path = f'./source_images/beach_01'
     output_directory = f'./runs/{category}'
     rmin = 1.0
-    rmax = 1000.0
+    rmax = 100.0
     alpha = 3.0
     opacity =0.5
     width = 500
@@ -143,7 +148,7 @@ def train():
     loss_type = 'ffl'
     save_freq= 10
 
-    kernel_size=1001
+    kernel_size=101
     batch_size=1000
 
     num_epochs = 200
@@ -210,7 +215,7 @@ def train():
     RMAX = nn.Parameter(torch.tensor(rmax, device=device,requires_grad=True),requires_grad=True)
     ALPHA = nn.Parameter(torch.tensor(alpha, device=device,requires_grad=True),requires_grad=True)
     OPACITY = nn.Parameter(torch.tensor(opacity, device=device,requires_grad=True),requires_grad=True)
-    NUM_GAUSSIANS = nn.Parameter(torch.tensor(num_gaussians, device=device, requires_grad=True),requires_grad=True)
+    # NUM_GAUSSIANS = nn.Parameter(torch.tensor(num_gaussians, device=device, requires_grad=True),requires_grad=True)
 
     optimizer = Adam([RMIN, RMAX, ALPHA, OPACITY], lr=learning_rate)
     # optimizer = Adam([RMIN, RMAX, ALPHA], lr=learning_rate)
@@ -218,6 +223,9 @@ def train():
     loss_history = []
 
     for epoch in range(1,num_epochs+1):
+
+        if epoch % 50 == 0:
+            num_gaussians = num_gaussians + 500
         gc.collect()
         torch.cuda.empty_cache()
         
@@ -225,8 +233,7 @@ def train():
         rmax = RMAX
         alpha = ALPHA
         opacity = OPACITY
-        # print('226 opacity requires grad: ', opacity.requires_grad)
-        
+        # num_gaussians = NUM_GAUSSIANS
 
         generated_images_list = []
         
@@ -242,6 +249,14 @@ def train():
                 kernel_size=kernel_size,
                 device=device
             )
+            # g_tensor = generate_dead_leaves_images(
+            #     rmin, rmax, alpha,
+            #     color_histogram=color_histograms[np.random.randint(0, len(source_images))],
+            #     gaussian_batch_size=batch_size, 
+            #     num_gaussians=num_gaussians, 
+            #     kernel_size=kernel_size,
+            #     device=device
+            # )
             generated_images_list.append(g_tensor)
         
         #[num_images, H, W, C]
@@ -271,9 +286,9 @@ def train():
         optimizer.step()
 
         with torch.no_grad():
-            OPACITY.clamp_(min=0.01, max=1.0)  # Keep opacity positive
-            RMIN.clamp_(min=1.0, max=100.0)    # Reasonable min radius
-            RMAX.clamp_(min=RMIN + 1.0, max=5000.0)  # Ensure rmax > rmin
+            OPACITY.clamp_(min=0.01, max=1.0)
+            RMIN.clamp_(min=0.8, max=100.0) 
+            RMAX.clamp_(min=RMIN + 1.0, max=5000.0)
             ALPHA.clamp_(min=1.1, max=10.0)   
             
         scheduler.step()
@@ -287,7 +302,8 @@ def train():
                 "rmin": RMIN.item(),
                 "rmax": RMAX.item(),
                 "alpha": ALPHA.item(),
-                "opacity": OPACITY.item()
+                "opacity": OPACITY.item(),
+                "num_gaussians": num_gaussians
             })
 
         if epoch % save_freq == 0 or epoch == 1:
