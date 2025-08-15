@@ -10,6 +10,36 @@ import jax.numpy as jnp
 from jax import lax
 import torch
 
+
+def save_debug_kernel(kernel_tensor, idx):
+    # kernel_tensor: [1, H, W] or [3, H, W], values in [0,1]
+    kernel_np = kernel_tensor.detach().cpu().squeeze().numpy()  # Remove batch dim if present
+    
+    # If RGB (3 channels), permute to HWC format
+    if len(kernel_np.shape) == 3 and kernel_np.shape[0] == 3:
+        kernel_np = kernel_np.transpose(1, 2, 0)
+    
+    # Set figure size to match the kernel dimensions (in inches)
+    dpi = 100
+    height, width = kernel_np.shape[0], kernel_np.shape[1]
+    figsize = width / float(dpi), height / float(dpi)
+    
+    fig = plt.figure(figsize=figsize, dpi=dpi)
+    ax = fig.add_axes([0, 0, 1, 1])  # Remove margins
+    ax.axis('off')
+    
+    if len(kernel_np.shape) == 2:  # Grayscale
+        ax.imshow(kernel_np, cmap='gray')
+    else:  # RGB
+        ax.imshow(kernel_np)
+    
+    timestamp = int(time() * 1000)  # ms resolution
+    filename = f"kernel_{idx}_{timestamp}.png"
+    filepath = os.path.join(DEBUG_KERNEL_DIR, filename)
+    fig.savefig(filepath, dpi=dpi, bbox_inches='tight', pad_inches=0)
+    plt.close(fig)
+
+
 def sampling_grayscale_histogram(source_image, grayscale=True, visualize=False):
     
     #slow operation

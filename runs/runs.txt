@@ -25,7 +25,18 @@ beach:
     33 - gradually increasing number of gaussians, opacity variable
     33 - ", clipping rmin at 0.8
 
+    34 - init rmin = 5, rmax = 20, alpha = 1, epochs = 1000, lr = 0.01
+
     ? - setting num_gaussians as an optimizable parameter
+
+    fixed kernel square plotting problem !
+    37 - 5 gaussians, 0.5 opacity, 100 epochs, regular init
+    38 - ", 10 gaussians
+    39 - ", 50 gaussians with increments (failed)
+    40 - ", rmin clamped at 0.1
+
+    44 - ", opacity fixed at 1
+    45
     
 
 forest:

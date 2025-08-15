@@ -151,7 +151,7 @@ def train():
     kernel_size=101
     batch_size=1000
 
-    num_epochs = 200
+    num_epochs = 50
     learning_rate = 0.1
     num_gaussians = 500
 
